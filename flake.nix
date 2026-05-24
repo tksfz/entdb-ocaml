@@ -24,7 +24,15 @@
           ];
 
           buildInputs = with ocamlPackages; [
-            # Add library dependencies here
+            lwt
+            lwt_ppx
+            caqti
+            caqti-lwt
+            caqti-driver-sqlite3
+            yojson
+            ppx_yojson_conv
+            uuidm
+            cmdliner
           ];
 
           shellHook = ''

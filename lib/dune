@@ -1,2 +1,6 @@
+(include_subdirs unqualified)
+
 (library
- (name entdb))
+ (name entdb)
+ (libraries lwt lwt.unix caqti caqti-lwt caqti-lwt.unix caqti-driver-sqlite3 yojson ppx_yojson_conv_lib uuidm cmdliner)
+ (preprocess (pps ppx_yojson_conv lwt_ppx)))
