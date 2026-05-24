@@ -4,23 +4,21 @@
 
 (generate_opam_files true)
 
-(source
- (github username/reponame))
-
-(authors "Author Name <author@example.com>")
-
-(maintainers "Maintainer Name <maintainer@example.com>")
-
-(license LICENSE)
-
-(documentation https://url/to/documentation)
-
 (package
  (name entdb)
- (synopsis "A short synopsis")
- (description "A longer description")
- (depends ocaml)
- (tags
-  ("add topics" "to describe" your project)))
+ (synopsis "EntDB")
+ (description "A database for agents")
+ (depends
+  ocaml
+  dune
+  lwt
+  lwt_ppx
+  caqti
+  caqti-lwt
+  caqti-driver-sqlite3
+  yojson
+  ppx_yojson_conv
+  uuidm
+  cmdliner))
 
 ; See the complete stanza docs at https://dune.readthedocs.io/en/stable/reference/dune-project/index.html
