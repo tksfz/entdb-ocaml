@@ -194,10 +194,18 @@ let open_cmd =
   let info = Cmd.info "open" ~doc in
   Cmd.v info Term.(const open_schema $ file_arg)
 
+let schema_default_help () =
+  Printf.printf "Usage: entdb schema COMMAND [OPTIONS]\n\n";
+  Printf.printf "Commands:\n";
+  Printf.printf "  create        Create a new database schema\n";
+  Printf.printf "  open          Open an existing database schema\n\n";
+  Printf.printf "Run `entdb schema COMMAND --help` for more information on a command.\n"
+
 let schema_cmd =
   let doc = "Schema management" in
   let info = Cmd.info "schema" ~doc in
-  Cmd.group info [create_cmd; open_cmd]
+  let default = Term.(const schema_default_help $ const ()) in
+  Cmd.group info ~default [create_cmd; open_cmd]
 
 let dbfile_opt =
   let doc = "Database file path (overrides currently open database)" in
@@ -217,10 +225,18 @@ let list_entities_cmd =
   let info = Cmd.info "list" ~doc in
   Cmd.v info Term.(const list_entities $ dbfile_opt)
 
+let entities_default_help () =
+  Printf.printf "Usage: entdb entities COMMAND [OPTIONS]\n\n";
+  Printf.printf "Commands:\n";
+  Printf.printf "  add           Add a new entity definition from a JSON blob\n";
+  Printf.printf "  list          List all entity definitions\n\n";
+  Printf.printf "Run `entdb entities COMMAND --help` for more information on a command.\n"
+
 let entities_cmd =
   let doc = "Entity definition management" in
   let info = Cmd.info "entities" ~doc in
-  Cmd.group info [add_entity_cmd; list_entities_cmd]
+  let default = Term.(const entities_default_help $ const ()) in
+  Cmd.group info ~default [add_entity_cmd; list_entities_cmd]
 
 let entity_name_arg =
   let doc = "Name of the entity definition" in
@@ -240,10 +256,18 @@ let get_entity_data_cmd =
   let info = Cmd.info "get" ~doc in
   Cmd.v info Term.(const get_entity_data $ id_arg $ dbfile_opt)
 
+let entity_data_default_help () =
+  Printf.printf "Usage: entdb entity-data COMMAND [OPTIONS]\n\n";
+  Printf.printf "Commands:\n";
+  Printf.printf "  put           Put entity data from a JSON blob\n";
+  Printf.printf "  get           Get entity data by ID\n\n";
+  Printf.printf "Run `entdb entity-data COMMAND --help` for more information on a command.\n"
+
 let entity_data_cmd =
   let doc = "Entity data management" in
   let info = Cmd.info "entity-data" ~doc in
-  Cmd.group info [put_entity_data_cmd; get_entity_data_cmd]
+  let default = Term.(const entity_data_default_help $ const ()) in
+  Cmd.group info ~default [put_entity_data_cmd; get_entity_data_cmd]
 
 let default_help () =
   Printf.printf "EntDB - A database for agents\n\n";
