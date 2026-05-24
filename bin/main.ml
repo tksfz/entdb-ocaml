@@ -245,9 +245,19 @@ let entity_data_cmd =
   let info = Cmd.info "entity-data" ~doc in
   Cmd.group info [put_entity_data_cmd; get_entity_data_cmd]
 
+let default_help () =
+  Printf.printf "EntDB - A database for agents\n\n";
+  Printf.printf "Usage: entdb COMMAND [OPTIONS]\n\n";
+  Printf.printf "Commands:\n";
+  Printf.printf "  schema        Schema management\n";
+  Printf.printf "  entities      Entity definition management\n";
+  Printf.printf "  entity-data   Entity data management\n\n";
+  Printf.printf "Run `entdb COMMAND --help` for more information on a command.\n"
+
 let cmd =
   let doc = "EntDB CLI" in
   let info = Cmd.info "entdb" ~doc in
-  Cmd.group info [schema_cmd; entities_cmd; entity_data_cmd]
+  let default = Term.(const default_help $ const ()) in
+  Cmd.group info ~default [schema_cmd; entities_cmd; entity_data_cmd]
 
 let () = exit (Cmd.eval cmd)
