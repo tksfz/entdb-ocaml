@@ -1,5 +1,9 @@
 open Cmdliner
 open Lwt.Infix
+open Entdb_core
+open Entdb_storage
+open Entdb_data
+open Entdb_entity
 
 module Api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
 
@@ -21,6 +25,59 @@ let load_state () =
     Error "No database opened. Please run 'entdb schema open <file>' first."
 
 let run_lwt f = Lwt_main.run f
+
+(* Pre-parse for dynamic commands *)
+let pre_parse_args () =
+  let dbfile = ref None in
+  let script = ref None in
+  let rec parse i =
+    if i < Array.length Sys.argv then
+      let arg = Sys.argv.(i) in
+      if String.starts_with ~prefix:"--dbfile=" arg then (
+        dbfile := Some (String.sub arg 9 (String.length arg - 9));
+        parse (i + 1)
+      ) else if arg = "--dbfile" || arg = "-d" then (
+        if i + 1 < Array.length Sys.argv then dbfile := Some Sys.argv.(i + 1);
+        parse (i + 2)
+      ) else if String.starts_with ~prefix:"--script=" arg then (
+        script := Some (String.sub arg 9 (String.length arg - 9));
+        parse (i + 1)
+      ) else if arg = "--script" || arg = "-s" then (
+        if i + 1 < Array.length Sys.argv then script := Some Sys.argv.(i + 1);
+        parse (i + 2)
+      ) else parse (i + 1)
+  in
+  parse 1;
+  (!dbfile, !script)
+
+let clean_argv () =
+  let rec filter acc i =
+    if i >= Array.length Sys.argv then Array.of_list (List.rev acc)
+    else
+      let arg = Sys.argv.(i) in
+      if String.starts_with ~prefix:"--script=" arg then filter acc (i + 1)
+      else if arg = "--script" || arg = "-s" then filter acc (i + 2)
+      else filter (arg :: acc) (i + 1)
+  in
+  filter [] 0
+
+let get_dynamic_entities dbfile =
+  let db_path_res =
+    match dbfile with
+    | Some p -> Ok p
+    | None -> (match load_state () with Ok s -> Ok s.db_path | Error e -> Error e)
+  in
+  match db_path_res with
+  | Error _ -> []
+  | Ok db_path ->
+      Lwt_main.run (
+        Entdb_storage.Sqlite.open_database db_path >>= function
+        | Error _ -> Lwt.return []
+        | Ok storage ->
+            Entdb_storage.Sqlite.get_all_entity_definitions storage >>= function
+            | Error _ -> Lwt.return []
+            | Ok defs -> Lwt.return (List.map (fun d -> d.Entdb_core.Entity_definition.name) defs)
+      )
 
 (* Commands *)
 
@@ -268,19 +325,75 @@ let entity_data_cmd =
   let default = Term.(const entity_data_default_help $ const ()) in
   Cmd.group info ~default [put_entity_data_cmd; get_entity_data_cmd]
 
-let default_help () =
+(* Dynamic Entity Commands *)
+
+let make_dynamic_entity_cmd entity_name =
+  let doc = Printf.sprintf "Commands for entity %s" entity_name in
+  let info = Cmd.info (String.lowercase_ascii entity_name) ~doc in
+  
+  let put_cmd =
+    let doc = Printf.sprintf "Put data for %s" entity_name in
+    let info = Cmd.info "put" ~doc in
+    Cmd.v info Term.(const put_entity_data $ const entity_name $ in_file_arg $ dbfile_opt)
+  in
+  
+  let get_cmd =
+    let doc = Printf.sprintf "Get data for %s by ID" entity_name in
+    let info = Cmd.info "get" ~doc in
+    Cmd.v info Term.(const get_entity_data $ id_arg $ dbfile_opt)
+  in
+  
+  let default_help () =
+    Printf.printf "Usage: entdb entity %s COMMAND [OPTIONS]\n\n" (String.lowercase_ascii entity_name);
+    Printf.printf "Commands:\n";
+    Printf.printf "  put           Put data for %s from a JSON blob\n" entity_name;
+    Printf.printf "  get           Get data for %s by ID\n\n" entity_name;
+    Printf.printf "Run `entdb entity %s COMMAND --help` for more information on a command.\n" (String.lowercase_ascii entity_name)
+  in
+  let default = Term.(const default_help $ const ()) in
+  
+  Cmd.group info ~default [put_cmd; get_cmd]
+
+let make_dynamic_entities_group names =
+  let doc = "Dynamic entity management" in
+  let info = Cmd.info "entity" ~doc in
+  let subcmds = List.map make_dynamic_entity_cmd names in
+  let default_help () =
+    Printf.printf "Usage: entdb entity COMMAND [OPTIONS]\n\n";
+    Printf.printf "Commands:\n";
+    List.iter (fun name ->
+      Printf.printf "  %-14s Commands for entity %s\n" (String.lowercase_ascii name) name
+    ) names;
+    Printf.printf "\nRun `entdb entity COMMAND --help` for more information on a command.\n"
+  in
+  let default = Term.(const default_help $ const ()) in
+  Cmd.group info ~default subcmds
+
+let default_help names () =
   Printf.printf "EntDB - A database for agents\n\n";
   Printf.printf "Usage: entdb COMMAND [OPTIONS]\n\n";
   Printf.printf "Commands:\n";
   Printf.printf "  schema        Schema management\n";
   Printf.printf "  entities      Entity definition management\n";
-  Printf.printf "  entity-data   Entity data management\n\n";
-  Printf.printf "Run `entdb COMMAND --help` for more information on a command.\n"
+  Printf.printf "  entity-data   Entity data management\n";
+  if names <> [] then
+    Printf.printf "  entity        Dynamic entity management\n";
+  Printf.printf "\nRun `entdb COMMAND --help` for more information on a command.\n"
 
-let cmd =
+let () =
+  let dbfile, _script_opt = pre_parse_args () in
+  let dynamic_names = get_dynamic_entities dbfile in
+  let new_argv = clean_argv () in
+  
   let doc = "EntDB CLI" in
   let info = Cmd.info "entdb" ~doc in
-  let default = Term.(const default_help $ const ()) in
-  Cmd.group info ~default [schema_cmd; entities_cmd; entity_data_cmd]
-
-let () = exit (Cmd.eval cmd)
+  let default = Term.(const (default_help dynamic_names) $ const ()) in
+  
+  let base_cmds = [schema_cmd; entities_cmd; entity_data_cmd] in
+  let all_cmds = 
+    if dynamic_names = [] then base_cmds 
+    else make_dynamic_entities_group dynamic_names :: base_cmds 
+  in
+  
+  let cmd = Cmd.group info ~default all_cmds in
+  exit (Cmd.eval ~argv:new_argv cmd)
