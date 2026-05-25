@@ -1,0 +1,5 @@
+(library
+ (public_name entdb.core)
+ (name entdb_core)
+ (libraries uuidm yojson ppx_yojson_conv_lib)
+ (preprocess (pps ppx_yojson_conv)))
