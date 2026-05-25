@@ -5,18 +5,27 @@ module Make (S : Entdb_storage.Trait.S) = struct
 
   let create storage = { storage }
 
-  let put_entity_yojson t entity_name json =
-    S.get_entity_definition_by_name t.storage entity_name >>= function
+  (* --- Public Record-level API (Internal Logic Centralized Here) --- *)
+
+  let get_entity_definition_by_name t name =
+    S.get_entity_definition_by_name t.storage name >>= function
     | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
+    | Ok res -> Lwt.return (Ok res)
+
+  let insert_entity_definition t (def : Entdb_core.Entity_definition.t) =
+    S.insert_entity_definition t.storage def >>= function
+    | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
+    | Ok () -> Lwt.return (Ok ())
+
+  let put_entity_yojson t entity_name json =
+    get_entity_definition_by_name t entity_name >>= function
+    | Error e -> Lwt.return (Error e)
     | Ok None -> Lwt.return (Error (Printf.sprintf "Unknown entity definition name: %s" entity_name))
     | Ok (Some def) -> (
         let open Yojson.Safe.Util in
         match json |> member def.primary_key_field |> to_string_option with
         | None ->
-            Lwt.return
-              (Error
-                 (Printf.sprintf "Missing primary key field '%s' in JSON payload"
-                    def.primary_key_field))
+            Lwt.return (Error (Printf.sprintf "Missing primary key field '%s' in JSON payload" def.primary_key_field))
         | Some id_str -> (
             match Entdb_core.Type_id.of_string id_str with
             | Error e -> Lwt.return (Error (Printf.sprintf "Invalid TypeId format: %s" e))
@@ -27,10 +36,9 @@ module Make (S : Entdb_storage.Trait.S) = struct
                   | Ok () -> Lwt.return (Ok ())
                   | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
                 else
-                  Lwt.return
-                    (Error
-                       (Printf.sprintf "ID prefix '%s' does not match entity definition prefix '%s'"
-                          (Entdb_core.Type_id.prefix type_id) def.type_id_prefix))))
+                  Lwt.return (Error (Printf.sprintf "ID prefix '%s' does not match entity definition prefix '%s'" (Entdb_core.Type_id.prefix type_id) def.type_id_prefix))))
+
+  (* --- Public String/CLI API --- *)
 
   let add_entity_definition t blob =
     match Yojson.Safe.from_string blob with
@@ -56,9 +64,7 @@ module Make (S : Entdb_storage.Trait.S) = struct
                 primary_key_field;
               }
           in
-          S.insert_entity_definition t.storage definition >>= function
-          | Ok () -> Lwt.return (Ok ())
-          | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
+          insert_entity_definition t definition
         with Type_error (msg, _) ->
           Lwt.return (Error (Printf.sprintf "Missing or invalid field in JSON payload: %s" msg)))
 
