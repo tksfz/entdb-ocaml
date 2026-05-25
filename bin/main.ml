@@ -258,7 +258,7 @@ let schema_default_help () =
   Printf.printf "Run `entdb schema COMMAND --help` for more information on a command.\n"
 
 let schema_cmd =
-  let doc = "Schema management" in
+  let doc = "Create and open schema database files" in
   let info = Cmd.info "schema" ~doc in
   let default = Term.(const schema_default_help $ const ()) in
   Cmd.group info ~default [create_cmd; open_cmd]
@@ -289,7 +289,7 @@ let entities_default_help () =
   Printf.printf "Run `entdb entities COMMAND --help` for more information on a command.\n"
 
 let entities_cmd =
-  let doc = "Entity definition management" in
+  let doc = "Add new entity types or manage existing ones" in
   let info = Cmd.info "entities" ~doc in
   let default = Term.(const entities_default_help $ const ()) in
   Cmd.group info ~default [add_entity_cmd; list_entities_cmd]
@@ -320,7 +320,7 @@ let entity_data_default_help () =
   Printf.printf "Run `entdb entity-data COMMAND --help` for more information on a command.\n"
 
 let entity_data_cmd =
-  let doc = "Entity data management" in
+  let doc = "Low-level entity data CRUD" in
   let info = Cmd.info "entity-data" ~doc in
   let default = Term.(const entity_data_default_help $ const ()) in
   Cmd.group info ~default [put_entity_data_cmd; get_entity_data_cmd]
@@ -355,7 +355,7 @@ let make_dynamic_entity_cmd entity_name =
   Cmd.group info ~default [put_cmd; get_cmd]
 
 let make_dynamic_entities_group names =
-  let doc = "Dynamic entity management" in
+  let doc = "High-level entity data operations" in
   let info = Cmd.info "entity" ~doc in
   let subcmds = List.map make_dynamic_entity_cmd names in
   let default_help () =
@@ -369,15 +369,14 @@ let make_dynamic_entities_group names =
   let default = Term.(const default_help $ const ()) in
   Cmd.group info ~default subcmds
 
-let default_help names () =
+let default_help _names () =
   Printf.printf "EntDB - A database for agents\n\n";
   Printf.printf "Usage: entdb COMMAND [OPTIONS]\n\n";
   Printf.printf "Commands:\n";
-  Printf.printf "  schema        Schema management\n";
-  Printf.printf "  entities      Entity definition management\n";
-  Printf.printf "  entity-data   Entity data management\n";
-  if names <> [] then
-    Printf.printf "  entity        Dynamic entity management\n";
+  Printf.printf "  %-14s Create and open schema database files\n" "schema";
+  Printf.printf "  %-14s Add new entity types or manage existing ones\n" "entities";
+  Printf.printf "  %-14s Low-level entity data CRUD\n" "entity-data";
+  Printf.printf "  %-14s High-level entity data operations\n" "entity";
   Printf.printf "\nRun `entdb COMMAND --help` for more information on a command.\n"
 
 let () =
@@ -390,10 +389,7 @@ let () =
   let default = Term.(const (default_help dynamic_names) $ const ()) in
   
   let base_cmds = [schema_cmd; entities_cmd; entity_data_cmd] in
-  let all_cmds = 
-    if dynamic_names = [] then base_cmds 
-    else make_dynamic_entities_group dynamic_names :: base_cmds 
-  in
+  let all_cmds = make_dynamic_entities_group dynamic_names :: base_cmds in
   
   let cmd = Cmd.group info ~default all_cmds in
   exit (Cmd.eval ~argv:new_argv cmd)
