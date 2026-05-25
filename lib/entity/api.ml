@@ -1,11 +1,18 @@
 open Lwt.Infix
 
-module Make (S : Entdb_storage.Trait.S) = struct
-  module D = Entdb_data.Api.Make(S)
+module type DATA_API = sig
+  type t
+  val get_entity_definition_by_name : t -> string -> (Entdb_core.Entity_definition.t option, string) result Lwt.t
+  val insert_entity_definition : t -> Entdb_core.Entity_definition.t -> (unit, string) result Lwt.t
+  val put_entity_yojson : t -> string -> Yojson.Safe.t -> (unit, string) result Lwt.t
+  val get_entity_data : t -> string -> (Yojson.Safe.t option, string) result Lwt.t
+end
+
+module Make (D : DATA_API) = struct
 
   let register_entity (t : D.t) (module E : Trait.S) =
-    S.get_entity_definition_by_name t.storage E.name >>= function
-    | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
+    D.get_entity_definition_by_name t E.name >>= function
+    | Error e -> Lwt.return (Error e)
     | Ok (Some _) -> Lwt.return (Ok ())
     | Ok None ->
         let definition =
@@ -18,9 +25,7 @@ module Make (S : Entdb_storage.Trait.S) = struct
               primary_key_field = E.primary_key_field;
             }
         in
-        S.insert_entity_definition t.storage definition >>= function
-        | Ok () -> Lwt.return (Ok ())
-        | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
+        D.insert_entity_definition t definition
 
   let put_entity (type a) (t : D.t) (module E : Trait.S with type t = a) (data : a) =
     let json = E.yojson_of_t data in

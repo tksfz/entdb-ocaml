@@ -17,7 +17,7 @@ module Task = struct
 end
 
 module Data_api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
-module Entity_api = Entdb_entity.Api.Make(Entdb_storage.Sqlite)
+module Entity_api = Entdb_entity.Api.Make(Data_api)
 
 let run_example () =
   let db_path = "example_code_first.sqlite" in
