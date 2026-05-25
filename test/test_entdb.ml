@@ -1,14 +1,13 @@
 open Lwt.Infix
-open Entdb
 
-module Api = Api.Make(Sqlite_storage)
+module Api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
 
 let run_test () =
   let db_path = "test_entdb.sqlite" in
   (if Sys.file_exists db_path then Sys.remove db_path);
   
-  Sqlite_storage.create_database db_path >>= function
-  | Error e -> Lwt.fail_with (Storage.error_to_string e)
+  Entdb_storage.Sqlite.create_database db_path >>= function
+  | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
   | Ok storage ->
       let api = Api.create storage in
       
@@ -32,7 +31,7 @@ let run_test () =
           | Error _ -> (* Expected error *)
              
           (* Test with real generated prefix ID. But we have to generate one. *)
-          let valid_id = Type_id.to_string (Type_id.create_v7 "usr") in
+          let valid_id = Entdb_core.Type_id.to_string (Entdb_core.Type_id.create_v7 "usr") in
           let valid_payload = Printf.sprintf "{ \"id\": \"%s\", \"name\": \"Thom\", \"level\": 42 }" valid_id in
           
           Api.put_entity_data api "User" valid_payload >>= function

@@ -3,13 +3,13 @@ open Lwt.Infix
 module Db = struct
   let or_error = function
     | Ok x -> Ok x
-    | Error e -> Error (Storage.QueryError (Caqti_error.show e))
+    | Error e -> Error (Trait.QueryError (Caqti_error.show e))
 
   let connect path =
     let uri = Uri.make ~scheme:"sqlite3" ~path () in
     Caqti_lwt_unix.connect uri >|= function
     | Ok (module C : Caqti_lwt.CONNECTION) -> Ok (module C : Caqti_lwt.CONNECTION)
-    | Error e -> Error (Storage.ConnectionError (Caqti_error.show e))
+    | Error e -> Error (Trait.ConnectionError (Caqti_error.show e))
 end
 
 type t = (module Caqti_lwt.CONNECTION)
@@ -63,14 +63,14 @@ let create_database path =
 
 let open_database path = Db.connect path
 
-let insert_entity_definition (module C : Caqti_lwt.CONNECTION) (def : Data.Entity_definition.t) =
+let insert_entity_definition (module C : Caqti_lwt.CONNECTION) (def : Entdb_core.Entity_definition.t) =
   let open Caqti_request.Infix in
   let query =
     (Caqti_type.(t2 string (t2 string (t2 string (t2 (option string) string)))) ->. Caqti_type.unit)
       "INSERT INTO entity_definitions (id, type_id_prefix, name, description, primary_key_field) VALUES (?, ?, ?, ?, ?)"
   in
   C.exec query
-    ( Type_id.to_string def.id,
+    ( Entdb_core.Type_id.to_string def.id,
       (def.type_id_prefix,
        (def.name,
         (def.description,
@@ -78,12 +78,12 @@ let insert_entity_definition (module C : Caqti_lwt.CONNECTION) (def : Data.Entit
   >|= Db.or_error
 
 let row_to_entity_def (id_str, (type_id_prefix, (name, (description, primary_key_field)))) =
-  match Type_id.of_string id_str with
+  match Entdb_core.Type_id.of_string id_str with
   | Ok id ->
       Ok
-        Data.Entity_definition.
+        Entdb_core.Entity_definition.
           { id; type_id_prefix; name; description; primary_key_field }
-  | Error e -> Error (Storage.SerializationError e)
+  | Error e -> Error (Trait.SerializationError e)
 
 let get_entity_definition (module C : Caqti_lwt.CONNECTION) id =
   let open Caqti_request.Infix in
@@ -91,7 +91,7 @@ let get_entity_definition (module C : Caqti_lwt.CONNECTION) id =
     (Caqti_type.string ->? Caqti_type.(t2 string (t2 string (t2 string (t2 (option string) string)))))
       "SELECT id, type_id_prefix, name, description, primary_key_field FROM entity_definitions WHERE id = ?"
   in
-  C.find_opt query (Type_id.to_string id) >|= Db.or_error >>= function
+  C.find_opt query (Entdb_core.Type_id.to_string id) >|= Db.or_error >>= function
   | Error e -> Lwt.return (Error e)
   | Ok None -> Lwt.return (Ok None)
   | Ok (Some row) -> Lwt.return (match row_to_entity_def row with Ok x -> Ok (Some x) | Error e -> Error e)
@@ -135,7 +135,7 @@ let get_all_entity_definitions (module C : Caqti_lwt.CONNECTION) =
   | Ok (Error e) -> Error e
   | Error e -> Db.or_error (Error e)
 
-let insert_entity_data (module C : Caqti_lwt.CONNECTION) (data : Data.Entity_data.t) =
+let insert_entity_data (module C : Caqti_lwt.CONNECTION) (data : Entdb_core.Entity_data.t) =
   let open Caqti_request.Infix in
   let query =
     (Caqti_type.(t3 string string string) ->. Caqti_type.unit)
@@ -143,7 +143,7 @@ let insert_entity_data (module C : Caqti_lwt.CONNECTION) (data : Data.Entity_dat
   in
   let json_str = Yojson.Safe.to_string data.data in
   C.exec query
-    (Type_id.to_string data.id, Type_id.to_string data.entity_definition_id, json_str)
+    (Entdb_core.Type_id.to_string data.id, Entdb_core.Type_id.to_string data.entity_definition_id, json_str)
   >|= Db.or_error
 
 let get_entity_data (module C : Caqti_lwt.CONNECTION) id =
@@ -152,13 +152,13 @@ let get_entity_data (module C : Caqti_lwt.CONNECTION) id =
     (Caqti_type.string ->? Caqti_type.(t3 string string string))
       "SELECT id, entity_definition_id, data FROM entity_data WHERE id = ?"
   in
-  C.find_opt query (Type_id.to_string id) >|= Db.or_error >>= function
+  C.find_opt query (Entdb_core.Type_id.to_string id) >|= Db.or_error >>= function
   | Error e -> Lwt.return (Error e)
   | Ok None -> Lwt.return (Ok None)
   | Ok (Some (id_str, def_id_str, data_str)) ->
       Lwt.return
-        (match (Type_id.of_string id_str, Type_id.of_string def_id_str) with
+        (match (Entdb_core.Type_id.of_string id_str, Entdb_core.Type_id.of_string def_id_str) with
         | Ok id, Ok def_id ->
             let data = Yojson.Safe.from_string data_str in
-            Ok (Some Data.Entity_data.{ id; entity_definition_id = def_id; data })
-        | Error e, _ | _, Error e -> Error (Storage.SerializationError e))
+            Ok (Some Entdb_core.Entity_data.{ id; entity_definition_id = def_id; data })
+        | Error e, _ | _, Error e -> Error (Trait.SerializationError e))

@@ -1,8 +1,7 @@
 open Cmdliner
 open Lwt.Infix
-open Entdb
 
-module Api = Api.Make(Sqlite_storage)
+module Api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
 
 type state = { db_path : string } [@@deriving yojson]
 
@@ -28,8 +27,8 @@ let run_lwt f = Lwt_main.run f
 let create_schema file =
   run_lwt (
     Printf.printf "Creating database at %s...\n" file;
-    Sqlite_storage.create_database file >>= function
-    | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Storage.error_to_string e))
+    Entdb_storage.Sqlite.create_database file >>= function
+    | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
     | Ok _ ->
         match save_state file with
         | Error e -> Lwt.return (Printf.printf "Error saving state: %s\n" e)
@@ -39,8 +38,8 @@ let create_schema file =
 let open_schema file =
   run_lwt (
     Printf.printf "Opening database at %s...\n" file;
-    Sqlite_storage.open_database file >>= function
-    | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Storage.error_to_string e))
+    Entdb_storage.Sqlite.open_database file >>= function
+    | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
     | Ok _ ->
         match save_state file with
         | Error e -> Lwt.return (Printf.printf "Error saving state: %s\n" e)
@@ -80,8 +79,8 @@ let add_entity file dbfile =
         | Error e -> Lwt.return (Printf.printf "%s\n" e)
         | Ok db_path ->
             Printf.printf "Opening database at %s...\n" db_path;
-            Sqlite_storage.open_database db_path >>= function
-            | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Storage.error_to_string e))
+            Entdb_storage.Sqlite.open_database db_path >>= function
+            | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
             | Ok storage ->
                 let api = Api.create storage in
                 Printf.printf "Adding entity definition...\n";
@@ -101,8 +100,8 @@ let list_entities dbfile =
     match db_path_res with
     | Error e -> Lwt.return (Printf.printf "%s\n" e)
     | Ok db_path ->
-        Sqlite_storage.open_database db_path >>= function
-        | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Storage.error_to_string e))
+        Entdb_storage.Sqlite.open_database db_path >>= function
+        | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
         | Ok storage ->
             let api = Api.create storage in
             Api.list_entity_definitions api >>= function
@@ -144,8 +143,8 @@ let put_entity_data entity file dbfile =
         | Error e -> Lwt.return (Printf.printf "%s\n" e)
         | Ok db_path ->
             Printf.printf "Opening database at %s...\n" db_path;
-            Sqlite_storage.open_database db_path >>= function
-            | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Storage.error_to_string e))
+            Entdb_storage.Sqlite.open_database db_path >>= function
+            | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
             | Ok storage ->
                 let api = Api.create storage in
                 Printf.printf "Putting entity data...\n";
@@ -166,8 +165,8 @@ let get_entity_data id dbfile =
     | Error e -> Lwt.return (Printf.printf "%s\n" e)
     | Ok db_path ->
         Printf.printf "Opening database at %s...\n" db_path;
-        Sqlite_storage.open_database db_path >>= function
-        | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Storage.error_to_string e))
+        Entdb_storage.Sqlite.open_database db_path >>= function
+        | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
         | Ok storage ->
             let api = Api.create storage in
             Api.get_entity_data api id >>= function
