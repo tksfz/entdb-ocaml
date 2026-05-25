@@ -1,7 +1,13 @@
 open Cmdliner
 open Lwt.Infix
+open Entdb_core
+open Entdb_storage
+open Entdb_data
+open Entdb_entity
+open Entdb_script
 
 module Api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
+module Script_runner = Entdb_script.Runner.Make(Entdb_storage.Sqlite)
 
 type state = { db_path : string } [@@deriving yojson]
 
@@ -177,6 +183,27 @@ let get_entity_data id dbfile =
             | Error e -> Lwt.return (Printf.printf "Error: %s\n" e)
   )
 
+let run_script file dbfile =
+  run_lwt (
+    let db_path_res =
+      match dbfile with
+      | Some p -> Ok p
+      | None -> (match load_state () with Ok s -> Ok s.db_path | Error e -> Error e)
+    in
+    match db_path_res with
+    | Error e -> Lwt.return (Printf.printf "%s\n" e)
+    | Ok db_path ->
+        Printf.printf "Opening database at %s...\n" db_path;
+        Entdb_storage.Sqlite.open_database db_path >>= function
+        | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
+        | Ok storage ->
+            let api = Api.create storage in
+            Printf.printf "Running script %s...\n" file;
+            Script_runner.execute_and_register api file >>= function
+            | Ok () -> Lwt.return (Printf.printf "Script completed and entities registered!\n")
+            | Error e -> Lwt.return (Printf.printf "Error running script: %s\n" e)
+  )
+
 (* Cmdliner terms *)
 
 let file_arg =
@@ -268,19 +295,41 @@ let entity_data_cmd =
   let default = Term.(const entity_data_default_help $ const ()) in
   Cmd.group info ~default [put_entity_data_cmd; get_entity_data_cmd]
 
+let script_file_arg =
+  let doc = "OCaml script file" in
+  Arg.(required & pos 0 (some string) None & info [] ~docv:"SCRIPT" ~doc)
+
+let run_script_cmd =
+  let doc = "Run an OCaml script and register entities" in
+  let info = Cmd.info "run" ~doc in
+  Cmd.v info Term.(const run_script $ script_file_arg $ dbfile_opt)
+
+let script_default_help () =
+  Printf.printf "Usage: entdb script COMMAND [OPTIONS]\n\n";
+  Printf.printf "Commands:\n";
+  Printf.printf "  run           Run an OCaml script and register entities\n\n";
+  Printf.printf "Run `entdb script COMMAND --help` for more information on a command.\n"
+
+let script_cmd =
+  let doc = "Script management" in
+  let info = Cmd.info "script" ~doc in
+  let default = Term.(const script_default_help $ const ()) in
+  Cmd.group info ~default [run_script_cmd]
+
 let default_help () =
   Printf.printf "EntDB - A database for agents\n\n";
   Printf.printf "Usage: entdb COMMAND [OPTIONS]\n\n";
   Printf.printf "Commands:\n";
   Printf.printf "  schema        Schema management\n";
   Printf.printf "  entities      Entity definition management\n";
-  Printf.printf "  entity-data   Entity data management\n\n";
+  Printf.printf "  entity-data   Entity data management\n";
+  Printf.printf "  script        Script management\n\n";
   Printf.printf "Run `entdb COMMAND --help` for more information on a command.\n"
 
 let cmd =
   let doc = "EntDB CLI" in
   let info = Cmd.info "entdb" ~doc in
   let default = Term.(const default_help $ const ()) in
-  Cmd.group info ~default [schema_cmd; entities_cmd; entity_data_cmd]
+  Cmd.group info ~default [schema_cmd; entities_cmd; entity_data_cmd; script_cmd]
 
 let () = exit (Cmd.eval cmd)
