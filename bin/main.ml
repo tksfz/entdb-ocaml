@@ -32,6 +32,7 @@ let run_lwt f = Lwt_main.run f
 let pre_parse_args () =
   let dbfile = ref None in
   let source = ref None in
+  let ppx = ref false in
   let rec parse i =
     if i < Array.length Sys.argv then
       let arg = Sys.argv.(i) in
@@ -47,10 +48,13 @@ let pre_parse_args () =
       ) else if arg = "--source" || arg = "-s" then (
         if i + 1 < Array.length Sys.argv then source := Some Sys.argv.(i + 1);
         parse (i + 2)
+      ) else if arg = "--ppx" then (
+        ppx := true;
+        parse (i + 1)
       ) else parse (i + 1)
   in
   parse 1;
-  (!dbfile, !source)
+  (!dbfile, !source, !ppx)
 
 let clean_argv () =
   let rec filter acc i =
@@ -65,7 +69,7 @@ let clean_argv () =
   in
   filter [] 0
 
-let get_dynamic_entities dbfile source_opt =
+let get_dynamic_entities dbfile source_opt ppx =
   let db_path_res =
     match dbfile with
     | Some p -> Ok p
@@ -80,7 +84,7 @@ let get_dynamic_entities dbfile source_opt =
         | Ok storage ->
             let api = Api.create storage in
             (match source_opt with
-             | Some f -> Source_runner.execute_and_register api f >>= fun _ -> Lwt.return_unit
+             | Some f -> Source_runner.execute_and_register ~ppx api f >>= fun _ -> Lwt.return_unit
              | None -> Lwt.return_unit) >>= fun () ->
             
             Entdb_storage.Sqlite.get_all_entity_definitions storage >>= function
@@ -243,7 +247,7 @@ let get_entity_data id dbfile =
             | Error e -> Lwt.return (Printf.printf "Error: %s\n" e)
   )
 
-let run_source file dbfile =
+let run_source file dbfile ppx =
   run_lwt (
     let db_path_res =
       match dbfile with
@@ -259,12 +263,16 @@ let run_source file dbfile =
         | Ok storage ->
             let api = Api.create storage in
             Printf.printf "Running source %s...\n" file;
-            Source_runner.execute_and_register api file >>= function
+            Source_runner.execute_and_register ~ppx api file >>= function
             | Ok () -> Lwt.return (Printf.printf "Source completed and entities registered!\n")
             | Error e -> Lwt.return (Printf.printf "Error running source: %s\n" e)
   )
 
 (* Cmdliner terms *)
+
+let ppx_arg =
+  let doc = "Enable PPX preprocessing for the source file" in
+  Arg.(value & flag & info ["ppx"] ~doc)
 
 let file_arg =
   let doc = "Database file path" in
@@ -362,7 +370,7 @@ let source_file_arg =
 let run_source_cmd =
   let doc = "Run an OCaml source and register entities" in
   let info = Cmd.info "run" ~doc in
-  Cmd.v info Term.(const run_source $ source_file_arg $ dbfile_opt)
+  Cmd.v info Term.(const run_source $ source_file_arg $ dbfile_opt $ ppx_arg)
 
 let source_default_help () =
   Printf.printf "Usage: entdb source COMMAND [OPTIONS]\n\n";
@@ -445,8 +453,8 @@ let make_help_cmd dynamic_names =
   Cmd.v info Term.(const run $ show_all_arg $ const ())
 
 let () =
-  let dbfile, source_opt = pre_parse_args () in
-  let dynamic_names = get_dynamic_entities dbfile source_opt in
+  let dbfile, source_opt, ppx = pre_parse_args () in
+  let dynamic_names = get_dynamic_entities dbfile source_opt ppx in
   let new_argv = clean_argv () in
   
   let doc = "EntDB CLI" in

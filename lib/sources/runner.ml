@@ -1,12 +1,29 @@
 open Lwt.Infix
 
-let run_source file =
+let install_ppx_rewriter () =
+  let original_parse_use_file = !Toploop.parse_use_file in
+  Toploop.parse_use_file := (fun lexbuf ->
+    let phrases = original_parse_use_file lexbuf in
+    List.map (fun ph ->
+      match ph with
+      | Parsetree.Ptop_def str ->
+          let ppx_str = Ppxlib.Selected_ast.Of_ocaml.copy_structure str in
+          let ppx_str_mapped = Ppxlib.Driver.map_structure ppx_str in
+          let str_mapped = Ppxlib.Selected_ast.To_ocaml.copy_structure ppx_str_mapped in
+          Parsetree.Ptop_def str_mapped
+      | Parsetree.Ptop_dir _ as dir -> dir
+    ) phrases
+  )
+
+let run_source ~ppx file =
   try
     (* Initialize findlib to find external package paths *)
     Findlib.init ();
     
     (* Initialize the toplevel environment *)
     Toploop.initialize_toplevel_env ();
+    
+    if ppx then install_ppx_rewriter ();
     
     (* Add Dune build paths for our libraries so source can 'open' them.
        We point to the .objs/byte directories where the .cmi files live. *)
@@ -25,7 +42,7 @@ let run_source file =
     ) internal_libs;
     
     (* Add common external library paths *)
-    let external_libs = ["yojson"; "uuidm"; "lwt"] in
+    let external_libs = ["yojson"; "uuidm"; "lwt"; "ppx_yojson_conv_lib"] in
     List.iter (fun lib ->
       try Topdirs.dir_directory (Findlib.package_directory lib)
       with _ -> ()
@@ -43,8 +60,8 @@ module Make (S : Entdb_storage.Trait.S) = struct
   module Data_api = Entdb_data.Api.Make(S)
   module Entity_api = Entdb_entity.Api.Make(Data_api)
 
-  let execute_and_register api_handle source_file =
-    match run_source source_file with
+  let execute_and_register ?(ppx=false) api_handle source_file =
+    match run_source ~ppx source_file with
     | Error e -> Lwt.return (Error e)
     | Ok entities ->
         let rec register_all = function
@@ -56,3 +73,4 @@ module Make (S : Entdb_storage.Trait.S) = struct
         in
         register_all entities
 end
+let _ = Ppx_yojson_conv.yojson_of
