@@ -4,8 +4,10 @@ open Entdb_core
 open Entdb_storage
 open Entdb_data
 open Entdb_entity
+open Entdb_sources
 
 module Api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
+module Source_runner = Entdb_sources.Runner.Make(Entdb_storage.Sqlite)
 
 type state = { db_path : string } [@@deriving yojson]
 
@@ -29,7 +31,8 @@ let run_lwt f = Lwt_main.run f
 (* Pre-parse for dynamic commands *)
 let pre_parse_args () =
   let dbfile = ref None in
-  let script = ref None in
+  let source = ref None in
+  let ppx = ref false in
   let rec parse i =
     if i < Array.length Sys.argv then
       let arg = Sys.argv.(i) in
@@ -39,29 +42,34 @@ let pre_parse_args () =
       ) else if arg = "--dbfile" || arg = "-d" then (
         if i + 1 < Array.length Sys.argv then dbfile := Some Sys.argv.(i + 1);
         parse (i + 2)
-      ) else if String.starts_with ~prefix:"--script=" arg then (
-        script := Some (String.sub arg 9 (String.length arg - 9));
+      ) else if String.starts_with ~prefix:"--source=" arg then (
+        source := Some (String.sub arg 9 (String.length arg - 9));
         parse (i + 1)
-      ) else if arg = "--script" || arg = "-s" then (
-        if i + 1 < Array.length Sys.argv then script := Some Sys.argv.(i + 1);
+      ) else if arg = "--source" || arg = "-s" then (
+        if i + 1 < Array.length Sys.argv then source := Some Sys.argv.(i + 1);
         parse (i + 2)
+      ) else if arg = "--ppx" then (
+        ppx := true;
+        parse (i + 1)
       ) else parse (i + 1)
   in
   parse 1;
-  (!dbfile, !script)
+  (!dbfile, !source, !ppx)
 
 let clean_argv () =
   let rec filter acc i =
     if i >= Array.length Sys.argv then Array.of_list (List.rev acc)
     else
       let arg = Sys.argv.(i) in
-      if String.starts_with ~prefix:"--script=" arg then filter acc (i + 1)
-      else if arg = "--script" || arg = "-s" then filter acc (i + 2)
+      if String.starts_with ~prefix:"--source=" arg then filter acc (i + 1)
+      else if arg = "--source" || arg = "-s" then filter acc (i + 2)
+      else if String.starts_with ~prefix:"--dbfile=" arg then filter acc (i + 1)
+      else if arg = "--dbfile" || arg = "-d" then filter acc (i + 2)
       else filter (arg :: acc) (i + 1)
   in
   filter [] 0
 
-let get_dynamic_entities dbfile =
+let get_dynamic_entities dbfile source_opt ppx =
   let db_path_res =
     match dbfile with
     | Some p -> Ok p
@@ -74,6 +82,11 @@ let get_dynamic_entities dbfile =
         Entdb_storage.Sqlite.open_database db_path >>= function
         | Error _ -> Lwt.return []
         | Ok storage ->
+            let api = Api.create storage in
+            (match source_opt with
+             | Some f -> Source_runner.execute_and_register ~ppx api f >>= fun _ -> Lwt.return_unit
+             | None -> Lwt.return_unit) >>= fun () ->
+            
             Entdb_storage.Sqlite.get_all_entity_definitions storage >>= function
             | Error _ -> Lwt.return []
             | Ok defs -> Lwt.return (List.map (fun d -> d.Entdb_core.Entity_definition.name) defs)
@@ -234,7 +247,32 @@ let get_entity_data id dbfile =
             | Error e -> Lwt.return (Printf.printf "Error: %s\n" e)
   )
 
+let run_source file dbfile ppx =
+  run_lwt (
+    let db_path_res =
+      match dbfile with
+      | Some p -> Ok p
+      | None -> (match load_state () with Ok s -> Ok s.db_path | Error e -> Error e)
+    in
+    match db_path_res with
+    | Error e -> Lwt.return (Printf.printf "%s\n" e)
+    | Ok db_path ->
+        Printf.printf "Opening database at %s...\n" db_path;
+        Entdb_storage.Sqlite.open_database db_path >>= function
+        | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
+        | Ok storage ->
+            let api = Api.create storage in
+            Printf.printf "Running source %s...\n" file;
+            Source_runner.execute_and_register ~ppx api file >>= function
+            | Ok () -> Lwt.return (Printf.printf "Source completed and entities registered!\n")
+            | Error e -> Lwt.return (Printf.printf "Error running source: %s\n" e)
+  )
+
 (* Cmdliner terms *)
+
+let ppx_arg =
+  let doc = "Enable PPX preprocessing for the source file" in
+  Arg.(value & flag & info ["ppx"] ~doc)
 
 let file_arg =
   let doc = "Database file path" in
@@ -321,9 +359,30 @@ let entity_data_default_help () =
 
 let entity_data_cmd =
   let doc = "Low-level entity data CRUD" in
-  let info = Cmd.info "entity-data" ~doc in
+  let info = Cmd.info "entity-data" ~doc ~docs:Cmdliner.Manpage.s_none in
   let default = Term.(const entity_data_default_help $ const ()) in
   Cmd.group info ~default [put_entity_data_cmd; get_entity_data_cmd]
+
+let source_file_arg =
+  let doc = "OCaml source file" in
+  Arg.(required & pos 0 (some string) None & info [] ~docv:"SOURCE" ~doc)
+
+let run_source_cmd =
+  let doc = "Run an OCaml source and register entities" in
+  let info = Cmd.info "run" ~doc in
+  Cmd.v info Term.(const run_source $ source_file_arg $ dbfile_opt $ ppx_arg)
+
+let source_default_help () =
+  Printf.printf "Usage: entdb source COMMAND [OPTIONS]\n\n";
+  Printf.printf "Commands:\n";
+  Printf.printf "  run           Run an OCaml source and register entities\n\n";
+  Printf.printf "Run `entdb source COMMAND --help` for more information on a command.\n"
+
+let source_cmd =
+  let doc = "Source management" in
+  let info = Cmd.info "source" ~doc ~docs:Cmdliner.Manpage.s_none in
+  let default = Term.(const source_default_help $ const ()) in
+  Cmd.group info ~default [run_source_cmd]
 
 (* Dynamic Entity Commands *)
 
@@ -369,26 +428,42 @@ let make_dynamic_entities_group names =
   let default = Term.(const default_help $ const ()) in
   Cmd.group info ~default subcmds
 
-let default_help _names () =
+let default_help _names show_all =
   Printf.printf "EntDB - A database for agents\n\n";
   Printf.printf "Usage: entdb COMMAND [OPTIONS]\n\n";
   Printf.printf "Commands:\n";
   Printf.printf "  %-14s Create and open schema database files\n" "schema";
   Printf.printf "  %-14s Add new entity types or manage existing ones\n" "entities";
-  Printf.printf "  %-14s Low-level entity data CRUD\n" "entity-data";
+  if show_all then (
+    Printf.printf "  %-14s Low-level entity data CRUD\n" "entity-data";
+    Printf.printf "  %-14s Source management\n" "source";
+  );
   Printf.printf "  %-14s High-level entity data operations\n" "entity";
+  Printf.printf "  %-14s Show help about commands\n" "help";
   Printf.printf "\nRun `entdb COMMAND --help` for more information on a command.\n"
 
+let make_help_cmd dynamic_names =
+  let doc = "Show help about commands" in
+  let info = Cmd.info "help" ~doc in
+  let show_all_arg =
+    let doc = "Show all commands including plumbing commands" in
+    Arg.(value & flag & info ["a"; "all"] ~doc)
+  in
+  let run show_all () = default_help dynamic_names show_all in
+  Cmd.v info Term.(const run $ show_all_arg $ const ())
+
 let () =
-  let dbfile, _script_opt = pre_parse_args () in
-  let dynamic_names = get_dynamic_entities dbfile in
+  let dbfile, source_opt, ppx = pre_parse_args () in
+  let dynamic_names = get_dynamic_entities dbfile source_opt ppx in
   let new_argv = clean_argv () in
   
   let doc = "EntDB CLI" in
   let info = Cmd.info "entdb" ~doc in
-  let default = Term.(const (default_help dynamic_names) $ const ()) in
+  let run_default () = default_help dynamic_names false in
+  let default = Term.(const run_default $ const ()) in
   
-  let base_cmds = [schema_cmd; entities_cmd; entity_data_cmd] in
+  let help_cmd = make_help_cmd dynamic_names in
+  let base_cmds = [schema_cmd; entities_cmd; entity_data_cmd; source_cmd; help_cmd] in
   let all_cmds = make_dynamic_entities_group dynamic_names :: base_cmds in
   
   let cmd = Cmd.group info ~default all_cmds in
