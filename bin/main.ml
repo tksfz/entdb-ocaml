@@ -351,7 +351,7 @@ let entity_data_default_help () =
 
 let entity_data_cmd =
   let doc = "Low-level entity data CRUD" in
-  let info = Cmd.info "entity-data" ~doc in
+  let info = Cmd.info "entity-data" ~doc ~docs:Cmdliner.Manpage.s_none in
   let default = Term.(const entity_data_default_help $ const ()) in
   Cmd.group info ~default [put_entity_data_cmd; get_entity_data_cmd]
 
@@ -372,7 +372,7 @@ let source_default_help () =
 
 let source_cmd =
   let doc = "Source management" in
-  let info = Cmd.info "source" ~doc in
+  let info = Cmd.info "source" ~doc ~docs:Cmdliner.Manpage.s_none in
   let default = Term.(const source_default_help $ const ()) in
   Cmd.group info ~default [run_source_cmd]
 
@@ -420,16 +420,29 @@ let make_dynamic_entities_group names =
   let default = Term.(const default_help $ const ()) in
   Cmd.group info ~default subcmds
 
-let default_help _names () =
+let default_help _names show_all =
   Printf.printf "EntDB - A database for agents\n\n";
   Printf.printf "Usage: entdb COMMAND [OPTIONS]\n\n";
   Printf.printf "Commands:\n";
   Printf.printf "  %-14s Create and open schema database files\n" "schema";
   Printf.printf "  %-14s Add new entity types or manage existing ones\n" "entities";
-  Printf.printf "  %-14s Low-level entity data CRUD\n" "entity-data";
-  Printf.printf "  %-14s Source management\n" "source";
+  if show_all then (
+    Printf.printf "  %-14s Low-level entity data CRUD\n" "entity-data";
+    Printf.printf "  %-14s Source management\n" "source";
+  );
   Printf.printf "  %-14s High-level entity data operations\n" "entity";
+  Printf.printf "  %-14s Show help about commands\n" "help";
   Printf.printf "\nRun `entdb COMMAND --help` for more information on a command.\n"
+
+let make_help_cmd dynamic_names =
+  let doc = "Show help about commands" in
+  let info = Cmd.info "help" ~doc in
+  let show_all_arg =
+    let doc = "Show all commands including plumbing commands" in
+    Arg.(value & flag & info ["a"; "all"] ~doc)
+  in
+  let run show_all () = default_help dynamic_names show_all in
+  Cmd.v info Term.(const run $ show_all_arg $ const ())
 
 let () =
   let dbfile, source_opt = pre_parse_args () in
@@ -438,9 +451,11 @@ let () =
   
   let doc = "EntDB CLI" in
   let info = Cmd.info "entdb" ~doc in
-  let default = Term.(const (default_help dynamic_names) $ const ()) in
+  let run_default () = default_help dynamic_names false in
+  let default = Term.(const run_default $ const ()) in
   
-  let base_cmds = [schema_cmd; entities_cmd; entity_data_cmd; source_cmd] in
+  let help_cmd = make_help_cmd dynamic_names in
+  let base_cmds = [schema_cmd; entities_cmd; entity_data_cmd; source_cmd; help_cmd] in
   let all_cmds = make_dynamic_entities_group dynamic_names :: base_cmds in
   
   let cmd = Cmd.group info ~default all_cmds in
