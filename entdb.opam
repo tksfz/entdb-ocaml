@@ -14,6 +14,7 @@ depends: [
   "ppx_yojson_conv"
   "uuidm"
   "cmdliner"
+  "findlib"
   "odoc" {with-doc}
 ]
 build: [

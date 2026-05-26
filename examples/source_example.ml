@@ -2,7 +2,7 @@ open Entdb_core
 open Entdb_entity
 
 (* Scripts run in EntDB have access to Entdb_core and Entdb_entity modules.
-   They can define new entities and register them using Entdb_script.Harness.register. *)
+   They can define new entities and register them using Entdb_sources.Harness.register. *)
 
 type user = {
   id : string;
@@ -13,11 +13,11 @@ type user = {
 module User = struct
   type t = user
   let name = "User"
-  let description = Some "A user entity defined in a script"
+  let description = Some "A user entity defined in a source"
   let type_id_prefix = "usr"
   let primary_key_field = "id"
   
-  (* Manual JSON conversion (PPX support in scripts is a future improvement) *)
+  (* Manual JSON conversion (PPX support in sources is a future improvement) *)
   let yojson_of_t t = 
     `Assoc [
       ("id", `String t.id); 
@@ -33,6 +33,6 @@ module User = struct
 end
 
 (* Register the entity so the harness can add it to the database *)
-let () = Entdb_script.Harness.register (module User)
+let () = Entdb_sources.Harness.register (module User)
 
-let () = Printf.printf "Script: User entity defined and registered.\n"
+let () = Printf.printf "Source: User entity defined and registered.\n"

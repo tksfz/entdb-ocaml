@@ -2,6 +2,6 @@
  (public_name entdb)
  (name main)
  (modes byte)
- (libraries entdb_core entdb_storage entdb_data entdb_entity entdb_script cmdliner lwt lwt.unix yojson ppx_yojson_conv_lib compiler-libs.toplevel findlib.top dynlink)
+ (libraries entdb_core entdb_storage entdb_data entdb_entity entdb_sources cmdliner lwt lwt.unix yojson ppx_yojson_conv_lib compiler-libs.toplevel findlib.top dynlink)
  (link_flags (-linkall))
  (preprocess (pps ppx_yojson_conv)))

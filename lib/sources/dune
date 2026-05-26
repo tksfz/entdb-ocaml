@@ -1,6 +1,6 @@
 (library
- (public_name entdb.script)
- (name entdb_script)
+ (public_name entdb.sources)
+ (name entdb_sources)
  (modes byte)
  (libraries entdb_core entdb_storage entdb_data entdb_entity compiler-libs.toplevel findlib findlib.top)
  (preprocess (pps ppx_yojson_conv lwt_ppx)))

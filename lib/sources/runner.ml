@@ -1,6 +1,6 @@
 open Lwt.Infix
 
-let run_script file =
+let run_source file =
   try
     (* Initialize findlib to find external package paths *)
     Findlib.init ();
@@ -8,7 +8,7 @@ let run_script file =
     (* Initialize the toplevel environment *)
     Toploop.initialize_toplevel_env ();
     
-    (* Add Dune build paths for our libraries so script can 'open' them.
+    (* Add Dune build paths for our libraries so source can 'open' them.
        We point to the .objs/byte directories where the .cmi files live. *)
     let cwd = Sys.getcwd () in
     let internal_libs = [
@@ -16,7 +16,7 @@ let run_script file =
       "_build/default/lib/storage/.entdb_storage.objs/byte";
       "_build/default/lib/data/.entdb_data.objs/byte";
       "_build/default/lib/entity/.entdb_entity.objs/byte";
-      "_build/default/lib/script/.entdb_script.objs/byte";
+      "_build/default/lib/sources/.entdb_sources.objs/byte";
     ] in
     List.iter (fun d -> 
       let path = Filename.concat cwd d in
@@ -35,16 +35,16 @@ let run_script file =
     if success then
       Ok (Harness.get_registered ())
     else
-      Error "Script execution failed (see stderr for details)"
+      Error "Source execution failed (see stderr for details)"
   with e ->
-    Error (Printf.sprintf "Exception during script execution: %s" (Printexc.to_string e))
+    Error (Printf.sprintf "Exception during source execution: %s" (Printexc.to_string e))
 
 module Make (S : Entdb_storage.Trait.S) = struct
   module Data_api = Entdb_data.Api.Make(S)
   module Entity_api = Entdb_entity.Api.Make(Data_api)
 
-  let execute_and_register api_handle script_file =
-    match run_script script_file with
+  let execute_and_register api_handle source_file =
+    match run_source source_file with
     | Error e -> Lwt.return (Error e)
     | Ok entities ->
         let rec register_all = function

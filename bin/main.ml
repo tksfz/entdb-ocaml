@@ -4,10 +4,10 @@ open Entdb_core
 open Entdb_storage
 open Entdb_data
 open Entdb_entity
-open Entdb_script
+open Entdb_sources
 
 module Api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
-module Script_runner = Entdb_script.Runner.Make(Entdb_storage.Sqlite)
+module Source_runner = Entdb_sources.Runner.Make(Entdb_storage.Sqlite)
 
 type state = { db_path : string } [@@deriving yojson]
 
@@ -31,7 +31,7 @@ let run_lwt f = Lwt_main.run f
 (* Pre-parse for dynamic commands *)
 let pre_parse_args () =
   let dbfile = ref None in
-  let script = ref None in
+  let source = ref None in
   let rec parse i =
     if i < Array.length Sys.argv then
       let arg = Sys.argv.(i) in
@@ -41,29 +41,31 @@ let pre_parse_args () =
       ) else if arg = "--dbfile" || arg = "-d" then (
         if i + 1 < Array.length Sys.argv then dbfile := Some Sys.argv.(i + 1);
         parse (i + 2)
-      ) else if String.starts_with ~prefix:"--script=" arg then (
-        script := Some (String.sub arg 9 (String.length arg - 9));
+      ) else if String.starts_with ~prefix:"--source=" arg then (
+        source := Some (String.sub arg 9 (String.length arg - 9));
         parse (i + 1)
-      ) else if arg = "--script" || arg = "-s" then (
-        if i + 1 < Array.length Sys.argv then script := Some Sys.argv.(i + 1);
+      ) else if arg = "--source" || arg = "-s" then (
+        if i + 1 < Array.length Sys.argv then source := Some Sys.argv.(i + 1);
         parse (i + 2)
       ) else parse (i + 1)
   in
   parse 1;
-  (!dbfile, !script)
+  (!dbfile, !source)
 
 let clean_argv () =
   let rec filter acc i =
     if i >= Array.length Sys.argv then Array.of_list (List.rev acc)
     else
       let arg = Sys.argv.(i) in
-      if String.starts_with ~prefix:"--script=" arg then filter acc (i + 1)
-      else if arg = "--script" || arg = "-s" then filter acc (i + 2)
+      if String.starts_with ~prefix:"--source=" arg then filter acc (i + 1)
+      else if arg = "--source" || arg = "-s" then filter acc (i + 2)
+      else if String.starts_with ~prefix:"--dbfile=" arg then filter acc (i + 1)
+      else if arg = "--dbfile" || arg = "-d" then filter acc (i + 2)
       else filter (arg :: acc) (i + 1)
   in
   filter [] 0
 
-let get_dynamic_entities dbfile script_opt =
+let get_dynamic_entities dbfile source_opt =
   let db_path_res =
     match dbfile with
     | Some p -> Ok p
@@ -77,8 +79,8 @@ let get_dynamic_entities dbfile script_opt =
         | Error _ -> Lwt.return []
         | Ok storage ->
             let api = Api.create storage in
-            (match script_opt with
-             | Some f -> Script_runner.execute_and_register api f >>= fun _ -> Lwt.return_unit
+            (match source_opt with
+             | Some f -> Source_runner.execute_and_register api f >>= fun _ -> Lwt.return_unit
              | None -> Lwt.return_unit) >>= fun () ->
             
             Entdb_storage.Sqlite.get_all_entity_definitions storage >>= function
@@ -241,7 +243,7 @@ let get_entity_data id dbfile =
             | Error e -> Lwt.return (Printf.printf "Error: %s\n" e)
   )
 
-let run_script file dbfile =
+let run_source file dbfile =
   run_lwt (
     let db_path_res =
       match dbfile with
@@ -256,10 +258,10 @@ let run_script file dbfile =
         | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
         | Ok storage ->
             let api = Api.create storage in
-            Printf.printf "Running script %s...\n" file;
-            Script_runner.execute_and_register api file >>= function
-            | Ok () -> Lwt.return (Printf.printf "Script completed and entities registered!\n")
-            | Error e -> Lwt.return (Printf.printf "Error running script: %s\n" e)
+            Printf.printf "Running source %s...\n" file;
+            Source_runner.execute_and_register api file >>= function
+            | Ok () -> Lwt.return (Printf.printf "Source completed and entities registered!\n")
+            | Error e -> Lwt.return (Printf.printf "Error running source: %s\n" e)
   )
 
 (* Cmdliner terms *)
@@ -353,26 +355,26 @@ let entity_data_cmd =
   let default = Term.(const entity_data_default_help $ const ()) in
   Cmd.group info ~default [put_entity_data_cmd; get_entity_data_cmd]
 
-let script_file_arg =
-  let doc = "OCaml script file" in
-  Arg.(required & pos 0 (some string) None & info [] ~docv:"SCRIPT" ~doc)
+let source_file_arg =
+  let doc = "OCaml source file" in
+  Arg.(required & pos 0 (some string) None & info [] ~docv:"SOURCE" ~doc)
 
-let run_script_cmd =
-  let doc = "Run an OCaml script and register entities" in
+let run_source_cmd =
+  let doc = "Run an OCaml source and register entities" in
   let info = Cmd.info "run" ~doc in
-  Cmd.v info Term.(const run_script $ script_file_arg $ dbfile_opt)
+  Cmd.v info Term.(const run_source $ source_file_arg $ dbfile_opt)
 
-let script_default_help () =
-  Printf.printf "Usage: entdb script COMMAND [OPTIONS]\n\n";
+let source_default_help () =
+  Printf.printf "Usage: entdb source COMMAND [OPTIONS]\n\n";
   Printf.printf "Commands:\n";
-  Printf.printf "  run           Run an OCaml script and register entities\n\n";
-  Printf.printf "Run `entdb script COMMAND --help` for more information on a command.\n"
+  Printf.printf "  run           Run an OCaml source and register entities\n\n";
+  Printf.printf "Run `entdb source COMMAND --help` for more information on a command.\n"
 
-let script_cmd =
-  let doc = "Script management" in
-  let info = Cmd.info "script" ~doc in
-  let default = Term.(const script_default_help $ const ()) in
-  Cmd.group info ~default [run_script_cmd]
+let source_cmd =
+  let doc = "Source management" in
+  let info = Cmd.info "source" ~doc in
+  let default = Term.(const source_default_help $ const ()) in
+  Cmd.group info ~default [run_source_cmd]
 
 (* Dynamic Entity Commands *)
 
@@ -425,20 +427,20 @@ let default_help _names () =
   Printf.printf "  %-14s Create and open schema database files\n" "schema";
   Printf.printf "  %-14s Add new entity types or manage existing ones\n" "entities";
   Printf.printf "  %-14s Low-level entity data CRUD\n" "entity-data";
-  Printf.printf "  %-14s Script management\n" "script";
+  Printf.printf "  %-14s Source management\n" "source";
   Printf.printf "  %-14s High-level entity data operations\n" "entity";
   Printf.printf "\nRun `entdb COMMAND --help` for more information on a command.\n"
 
 let () =
-  let dbfile, script_opt = pre_parse_args () in
-  let dynamic_names = get_dynamic_entities dbfile script_opt in
+  let dbfile, source_opt = pre_parse_args () in
+  let dynamic_names = get_dynamic_entities dbfile source_opt in
   let new_argv = clean_argv () in
   
   let doc = "EntDB CLI" in
   let info = Cmd.info "entdb" ~doc in
   let default = Term.(const (default_help dynamic_names) $ const ()) in
   
-  let base_cmds = [schema_cmd; entities_cmd; entity_data_cmd; script_cmd] in
+  let base_cmds = [schema_cmd; entities_cmd; entity_data_cmd; source_cmd] in
   let all_cmds = make_dynamic_entities_group dynamic_names :: base_cmds in
   
   let cmd = Cmd.group info ~default all_cmds in
