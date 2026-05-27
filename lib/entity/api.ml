@@ -10,7 +10,7 @@ end
 
 module Make (D : DATA_API) = struct
 
-  let register_entity (t : D.t) (module E : Trait.S) =
+  let register_entity (t : D.t) (module E : Entdb_core.Entity_trait.S) =
     D.get_entity_definition_by_name t E.name >>= function
     | Error e -> Lwt.return (Error e)
     | Ok (Some _) -> Lwt.return (Ok ())
@@ -27,11 +27,11 @@ module Make (D : DATA_API) = struct
         in
         D.insert_entity_definition t definition
 
-  let put_entity (type a) (t : D.t) (module E : Trait.S with type t = a) (data : a) =
+  let put_entity (type a) (t : D.t) (module E : Entdb_core.Entity_trait.S with type t = a) (data : a) =
     let json = E.yojson_of_t data in
     D.put_entity_yojson t E.name json
 
-  let get_entity (type a) (t : D.t) (module E : Trait.S with type t = a) id_str =
+  let get_entity (type a) (t : D.t) (module E : Entdb_core.Entity_trait.S with type t = a) id_str =
     D.get_entity_data t id_str >>= function
     | Error e -> Lwt.return (Error e)
     | Ok None -> Lwt.return (Ok None)
