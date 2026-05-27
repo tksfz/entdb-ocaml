@@ -2,7 +2,7 @@ open Lwt.Infix
 
 (* 1. Define your entity struct (record) *)
 type task = {
-  id : string;
+  id : task Entdb_core.Entity_id.t;
   title : string;
   status : string;
 } [@@deriving yojson]
@@ -35,17 +35,18 @@ let run_example () =
       | Ok () ->
 
       (* 4. Insert data using the type-safe put_entity *)
-      let my_id = Entdb_core.Type_id.to_string (Entdb_core.Type_id.create_v7 Task.type_id_prefix) in
+      let my_id = Entdb_core.Entity_id.create (module Task) in
+      let my_id_str = Entdb_core.Entity_id.to_string my_id in
       let my_task = { id = my_id; title = "Implement OCaml traits"; status = "doing" } in
       
-      Printf.printf "Inserting task %s...\n" my_id;
+      Printf.printf "Inserting task %s...\n" my_id_str;
       Entity_api.put_entity api (module Task) my_task >>= function
       | Error e -> Lwt.fail_with e
       | Ok () ->
 
       (* 5. Retrieve data using the type-safe get_entity *)
-      Printf.printf "Retrieving task %s...\n" my_id;
-      Entity_api.get_entity api (module Task) my_id >>= function
+      Printf.printf "Retrieving task %s...\n" my_id_str;
+      Entity_api.get_entity api (module Task) my_id_str >>= function
       | Error e -> Lwt.fail_with e
       | Ok None -> Lwt.fail_with "Task not found"
       | Ok (Some retrieved_task) ->

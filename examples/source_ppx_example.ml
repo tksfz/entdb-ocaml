@@ -2,7 +2,7 @@ open Entdb_core
 open Entdb_entity
 
 type task = {
-  id : string;
+  id : task Entdb_core.Entity_id.t;
   title : string;
   status : string;
 } [@@deriving yojson]

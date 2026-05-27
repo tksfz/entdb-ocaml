@@ -5,7 +5,7 @@ open Entdb_entity
    They can define new entities and register them using Entdb_sources.Harness.register. *)
 
 type user = {
-  id : string;
+  id : user Entdb_core.Entity_id.t;
   name : string;
   email : string;
 }
@@ -20,14 +20,14 @@ module User = struct
   (* Manual JSON conversion (PPX support in sources is a future improvement) *)
   let yojson_of_t t = 
     `Assoc [
-      ("id", `String t.id); 
+      ("id", Entdb_core.Entity_id.yojson_of_t (fun _ -> `Null) t.id); 
       ("name", `String t.name);
       ("email", `String t.email)
     ]
     
   let t_of_yojson json =
     let open Yojson.Safe.Util in
-    { id = json |> member "id" |> to_string;
+    { id = Entdb_core.Entity_id.t_of_yojson (fun _ -> assert false) (json |> member "id");
       name = json |> member "name" |> to_string;
       email = json |> member "email" |> to_string }
 end
