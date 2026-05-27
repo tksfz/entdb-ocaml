@@ -11,6 +11,16 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
         ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_1;
+        validate = ocamlPackages.buildDunePackage rec {
+          pname = "validate";
+          version = "1.1.0";
+          src = pkgs.fetchurl {
+            url = "https://github.com/Axot017/validate/releases/download/v1.1.0/validate-1.1.0.tbz";
+            sha256 = "830d3b1ac8cdacfca2877030dd0377e46115527e7963359537daa5897e563da4";
+          };
+          propagatedBuildInputs = with ocamlPackages; [ ppx_deriving re uri ];
+          doCheck = false;
+        };
       in
       {
         devShells.default = pkgs.mkShell {
@@ -21,6 +31,7 @@
             ocamlPackages.ocamlformat
             ocamlPackages.utop
             ocamlPackages.findlib
+            opam
           ];
 
           buildInputs = with ocamlPackages; [
@@ -33,6 +44,7 @@
             ppx_yojson_conv
             uuidm
             cmdliner
+            validate
           ];
 
           shellHook = ''
