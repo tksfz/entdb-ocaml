@@ -15,6 +15,7 @@ depends: [
   "uuidm"
   "cmdliner"
   "findlib"
+  "validate"
   "odoc" {with-doc}
 ]
 build: [

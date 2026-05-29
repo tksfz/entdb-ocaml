@@ -42,7 +42,7 @@ let run_source ~ppx file =
     ) internal_libs;
     
     (* Add common external library paths *)
-    let external_libs = ["yojson"; "uuidm"; "lwt"; "ppx_yojson_conv_lib"] in
+    let external_libs = ["yojson"; "uuidm"; "lwt"; "ppx_yojson_conv_lib"; "validate"] in
     List.iter (fun lib ->
       try Topdirs.dir_directory (Findlib.package_directory lib)
       with _ -> ()
