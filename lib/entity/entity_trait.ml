@@ -1,5 +1,5 @@
 module type S = sig
-  module Id : Entity_id.S
+  module Id : Entdb_core.Entity_id.S
   type t
   val name : string
   val description : string option
