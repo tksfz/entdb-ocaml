@@ -1,7 +1,7 @@
 open Lwt.Infix
 
 module Task = struct
-  module Id = Entdb_core.Entity_id.Make(struct let type_id_prefix = "tsk" end)
+  module Id = Entdb_data.Entity_id.Make(struct let type_id_prefix = "tsk" end)
   
   type t = {
     id : Id.t;

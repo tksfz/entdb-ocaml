@@ -1,8 +1,8 @@
-open Entdb_core
+open Entdb_data
 open Entdb_entity_api
 
 module User = struct
-  module Id = Entdb_core.Entity_id.Make(struct let type_id_prefix = "usr" end)
+  module Id = Entdb_data.Entity_id.Make(struct let type_id_prefix = "usr" end)
   
   type t = {
     id : Id.t;

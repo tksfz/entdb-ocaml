@@ -1,4 +1,4 @@
 (library
  (public_name entdb.entity)
  (name entdb_entity)
- (libraries entdb_core))
+ (libraries entdb_data))

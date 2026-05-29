@@ -3,7 +3,7 @@ open Lwt.Infix
 let run = Lwt_main.run
 
 module Task = struct
-  module Id = Entdb_core.Entity_id.Make(struct let type_id_prefix = "tsk" end)
+  module Id = Entdb_data.Entity_id.Make(struct let type_id_prefix = "tsk" end)
 
   type t = {
     id : Id.t;
@@ -36,8 +36,8 @@ let test_register_entity () =
         | Error e -> Lwt.fail_with e
         | Ok None -> Lwt.fail_with "Task definition not found"
         | Ok (Some def) ->
-            Alcotest.(check string) "name" "Task" def.Entdb_core.Entity_definition.name;
-            Alcotest.(check string) "prefix" "tsk" def.Entdb_core.Entity_definition.type_id_prefix;
+            Alcotest.(check string) "name" "Task" def.Entdb_data.Entity_definition.name;
+            Alcotest.(check string) "prefix" "tsk" def.Entdb_data.Entity_definition.type_id_prefix;
             Lwt.return_unit)
 
 let test_register_entity_idempotent () =

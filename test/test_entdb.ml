@@ -31,7 +31,7 @@ let run_test () =
           | Error _ -> (* Expected error *)
              
           (* Test with real generated prefix ID. But we have to generate one. *)
-          let valid_id = Entdb_core.Type_id.to_string (Entdb_core.Type_id.create_v7 "usr") in
+          let valid_id = Entdb_data.Type_id.to_string (Entdb_data.Type_id.create_v7 "usr") in
           let valid_payload = Printf.sprintf "{ \"id\": \"%s\", \"name\": \"Thom\", \"level\": 42 }" valid_id in
           
           Api.put_entity_data api "User" valid_payload >>= function

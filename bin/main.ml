@@ -1,6 +1,6 @@
 open Cmdliner
 open Lwt.Infix
-open Entdb_core
+open Entdb_data
 open Entdb_storage
 open Entdb_data_api
 open Entdb_entity_api
@@ -89,7 +89,7 @@ let get_dynamic_entities dbfile source_opt ppx =
             
             Entdb_storage.Sqlite.get_all_entity_definitions storage >>= function
             | Error _ -> Lwt.return []
-            | Ok defs -> Lwt.return (List.map (fun d -> d.Entdb_core.Entity_definition.name) defs)
+            | Ok defs -> Lwt.return (List.map (fun d -> d.Entdb_data.Entity_definition.name) defs)
       )
 
 (* Commands *)

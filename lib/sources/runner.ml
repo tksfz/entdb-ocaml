@@ -29,7 +29,7 @@ let run_source ~ppx file =
        We point to the .objs/byte directories where the .cmi files live. *)
     let cwd = Sys.getcwd () in
     let internal_libs = [
-      "_build/default/lib/core/.entdb_core.objs/byte";
+      "_build/default/lib/data/.entdb_data.objs/byte";
       "_build/default/lib/storage/.entdb_storage.objs/byte";
       "_build/default/lib/data_api/.entdb_data_api.objs/byte";
       "_build/default/lib/entity_api/.entdb_entity_api.objs/byte";
