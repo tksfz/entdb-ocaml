@@ -23,8 +23,19 @@ module Make (P : PREFIX) : S = struct
 
   let type_id_prefix = P.type_id_prefix
 
+  let validate id =
+    let p = Type_id.prefix id in
+    if String.equal p P.type_id_prefix then
+      Ok ()
+    else
+      Error (Printf.sprintf "Invalid TypeId prefix: expected '%s', got '%s'" P.type_id_prefix p)
+
   let yojson_of_t id = Type_id.yojson_of_t id
-  let t_of_yojson json = Type_id.t_of_yojson json
+  let t_of_yojson json =
+    let id = Type_id.t_of_yojson json in
+    match validate id with
+    | Ok () -> id
+    | Error e -> Yojson.json_error e
 
   let to_string id = Type_id.to_string id
   let prefix id = Type_id.prefix id
@@ -32,13 +43,6 @@ module Make (P : PREFIX) : S = struct
   let eq = Type_id.eq
 
   let create () = Type_id.create_v7 P.type_id_prefix
-
-  let validate id =
-    let p = Type_id.prefix id in
-    if String.equal p P.type_id_prefix then
-      Ok ()
-    else
-      Error (Printf.sprintf "Invalid TypeId prefix: expected '%s', got '%s'" P.type_id_prefix p)
 
   let of_string str =
     match Type_id.of_string str with
