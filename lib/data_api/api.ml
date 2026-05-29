@@ -12,7 +12,7 @@ module Make (S : Entdb_storage.Trait.S) = struct
     | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
     | Ok res -> Lwt.return (Ok res)
 
-  let insert_entity_definition t (def : Entdb_core.Entity_definition.t) =
+  let insert_entity_definition t (def : Entdb_data.Entity_definition.t) =
     S.insert_entity_definition t.storage def >>= function
     | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
     | Ok () -> Lwt.return (Ok ())
@@ -27,16 +27,16 @@ module Make (S : Entdb_storage.Trait.S) = struct
         | None ->
             Lwt.return (Error (Printf.sprintf "Missing primary key field '%s' in JSON payload" def.primary_key_field))
         | Some id_str -> (
-            match Entdb_core.Type_id.of_string id_str with
+            match Entdb_data.Type_id.of_string id_str with
             | Error e -> Lwt.return (Error (Printf.sprintf "Invalid TypeId format: %s" e))
             | Ok type_id ->
-                if String.equal (Entdb_core.Type_id.prefix type_id) def.type_id_prefix then
-                  let data = Entdb_core.Entity_data.{ id = type_id; entity_definition_id = def.id; data = json } in
+                if String.equal (Entdb_data.Type_id.prefix type_id) def.type_id_prefix then
+                  let data = Entdb_data.Entity_data.{ id = type_id; entity_definition_id = def.id; data = json } in
                   S.insert_entity_data t.storage data >>= function
                   | Ok () -> Lwt.return (Ok ())
                   | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
                 else
-                  Lwt.return (Error (Printf.sprintf "ID prefix '%s' does not match entity definition prefix '%s'" (Entdb_core.Type_id.prefix type_id) def.type_id_prefix))))
+                  Lwt.return (Error (Printf.sprintf "ID prefix '%s' does not match entity definition prefix '%s'" (Entdb_data.Type_id.prefix type_id) def.type_id_prefix))))
 
   (* --- Public String/CLI API --- *)
 
@@ -55,9 +55,9 @@ module Make (S : Entdb_storage.Trait.S) = struct
             | None -> "id"
           in
           let definition =
-            Entdb_core.Entity_definition.
+            Entdb_data.Entity_definition.
               {
-                id = Entdb_core.Entity_definition.create_id ();
+                id = Entdb_data.Entity_definition.create_id ();
                 name;
                 description;
                 type_id_prefix = prefix;
@@ -72,10 +72,10 @@ module Make (S : Entdb_storage.Trait.S) = struct
     S.get_all_entity_definitions t.storage >>= function
     | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
     | Ok defs ->
-        let to_json (def : Entdb_core.Entity_definition.t) : Yojson.Safe.t =
+        let to_json (def : Entdb_data.Entity_definition.t) : Yojson.Safe.t =
           let base : (string * Yojson.Safe.t) list =
             [
-              ("id", `String (Entdb_core.Type_id.to_string def.id));
+              ("id", `String (Entdb_data.Type_id.to_string def.id));
               ("name", `String def.name);
               ("prefix", `String def.type_id_prefix);
               ("primary_key_field", `String def.primary_key_field);
@@ -96,11 +96,11 @@ module Make (S : Entdb_storage.Trait.S) = struct
     | json -> put_entity_yojson t entity_name json
 
   let get_entity_data t id_str =
-    match Entdb_core.Type_id.of_string id_str with
+    match Entdb_data.Type_id.of_string id_str with
     | Error e -> Lwt.return (Error (Printf.sprintf "Invalid TypeId format: %s" e))
     | Ok type_id -> (
         S.get_entity_data t.storage type_id >>= function
         | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
         | Ok None -> Lwt.return (Ok None)
-        | Ok (Some data) -> Lwt.return (Ok (Some data.Entdb_core.Entity_data.data)))
+        | Ok (Some data) -> Lwt.return (Ok (Some data.Entdb_data.Entity_data.data)))
 end

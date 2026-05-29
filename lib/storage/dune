@@ -1,5 +1,5 @@
 (library
  (public_name entdb.storage)
  (name entdb_storage)
- (libraries entdb_core lwt lwt.unix caqti caqti-lwt caqti-lwt.unix caqti-driver-sqlite3 yojson ppx_yojson_conv_lib)
+ (libraries entdb_data lwt lwt.unix caqti caqti-lwt caqti-lwt.unix caqti-driver-sqlite3 yojson ppx_yojson_conv_lib)
  (preprocess (pps ppx_yojson_conv lwt_ppx)))

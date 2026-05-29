@@ -16,6 +16,7 @@ depends: [
   "cmdliner"
   "findlib"
   "validate"
+  "alcotest" {with-test}
   "odoc" {with-doc}
 ]
 build: [

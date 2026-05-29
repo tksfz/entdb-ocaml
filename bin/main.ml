@@ -1,12 +1,12 @@
 open Cmdliner
 open Lwt.Infix
-open Entdb_core
-open Entdb_storage
 open Entdb_data
-open Entdb_entity
+open Entdb_storage
+open Entdb_data_api
+open Entdb_entity_api
 open Entdb_sources
 
-module Api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
+module Api = Entdb_data_api.Api.Make(Entdb_storage.Sqlite)
 module Source_runner = Entdb_sources.Runner.Make(Entdb_storage.Sqlite)
 
 type state = { db_path : string } [@@deriving yojson]
@@ -89,7 +89,7 @@ let get_dynamic_entities dbfile source_opt ppx =
             
             Entdb_storage.Sqlite.get_all_entity_definitions storage >>= function
             | Error _ -> Lwt.return []
-            | Ok defs -> Lwt.return (List.map (fun d -> d.Entdb_core.Entity_definition.name) defs)
+            | Ok defs -> Lwt.return (List.map (fun d -> d.Entdb_data.Entity_definition.name) defs)
       )
 
 (* Commands *)

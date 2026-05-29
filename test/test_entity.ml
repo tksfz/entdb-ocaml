@@ -3,7 +3,7 @@ open Lwt.Infix
 let run = Lwt_main.run
 
 module Task = struct
-  module Id = Entdb_core.Entity_id.Make(struct let type_id_prefix = "tsk" end)
+  module Id = Entdb_data.Entity_id.Make(struct let type_id_prefix = "tsk" end)
 
   type t = {
     id : Id.t;
@@ -15,8 +15,8 @@ module Task = struct
   let primary_key_field = "id"
 end
 
-module Data_api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
-module Entity_api = Entdb_entity.Api.Make(Data_api)
+module Data_api = Entdb_data_api.Api.Make(Entdb_storage.Sqlite)
+module Entity_api = Entdb_entity_api.Api.Make(Data_api)
 
 let make_api () =
   let path = Filename.temp_file "test_entdb_entity" ".sqlite" in
@@ -36,8 +36,8 @@ let test_register_entity () =
         | Error e -> Lwt.fail_with e
         | Ok None -> Lwt.fail_with "Task definition not found"
         | Ok (Some def) ->
-            Alcotest.(check string) "name" "Task" def.Entdb_core.Entity_definition.name;
-            Alcotest.(check string) "prefix" "tsk" def.Entdb_core.Entity_definition.type_id_prefix;
+            Alcotest.(check string) "name" "Task" def.Entdb_data.Entity_definition.name;
+            Alcotest.(check string) "prefix" "tsk" def.Entdb_data.Entity_definition.type_id_prefix;
             Lwt.return_unit)
 
 let test_register_entity_idempotent () =

@@ -1,0 +1,5 @@
+(library
+ (public_name entdb.entity_api)
+ (name entdb_entity_api)
+ (libraries entdb_data entdb_entity entdb_storage entdb_data_api lwt lwt.unix yojson ppx_yojson_conv_lib)
+ (preprocess (pps ppx_yojson_conv lwt_ppx)))

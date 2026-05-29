@@ -10,8 +10,8 @@ let make_db () =
     | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
     | Ok conn -> Lwt.return conn)
 
-let sample_def () : Entdb_core.Entity_definition.t =
-  Entdb_core.Entity_definition.{
+let sample_def () : Entdb_data.Entity_definition.t =
+  Entdb_data.Entity_definition.{
     id = create_id ();
     name = "User";
     description = Some "A user";
@@ -33,8 +33,8 @@ let test_definition_round_trip () =
         | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
         | Ok None -> Lwt.fail_with "definition not found"
         | Ok (Some retrieved) ->
-            Alcotest.(check string) "name" "User" retrieved.Entdb_core.Entity_definition.name;
-            Alcotest.(check string) "prefix" "usr" retrieved.Entdb_core.Entity_definition.type_id_prefix;
+            Alcotest.(check string) "name" "User" retrieved.Entdb_data.Entity_definition.name;
+            Alcotest.(check string) "prefix" "usr" retrieved.Entdb_data.Entity_definition.type_id_prefix;
             Lwt.return_unit)
 
 let test_definition_not_found () =
@@ -52,21 +52,21 @@ let test_entity_data_round_trip () =
     Entdb_storage.Sqlite.insert_entity_definition conn def >>= function
     | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
     | Ok () ->
-        let data = Entdb_core.Entity_data.create def (`Assoc [("name", `String "Thom")]) in
+        let data = Entdb_data.Entity_data.create def (`Assoc [("name", `String "Thom")]) in
         Entdb_storage.Sqlite.insert_entity_data conn data >>= function
         | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
         | Ok () ->
-            Entdb_storage.Sqlite.get_entity_data conn data.Entdb_core.Entity_data.id >>= function
+            Entdb_storage.Sqlite.get_entity_data conn data.Entdb_data.Entity_data.id >>= function
             | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
             | Ok None -> Lwt.fail_with "entity data not found"
             | Ok (Some retrieved) ->
-                let name = Yojson.Safe.Util.(retrieved.Entdb_core.Entity_data.data |> member "name" |> to_string) in
+                let name = Yojson.Safe.Util.(retrieved.Entdb_data.Entity_data.data |> member "name" |> to_string) in
                 Alcotest.(check string) "name" "Thom" name;
                 Lwt.return_unit)
 
 let test_entity_data_not_found () =
   let conn = make_db () in
-  let missing_id = Entdb_core.Type_id.create_v7 "usr" in
+  let missing_id = Entdb_data.Type_id.create_v7 "usr" in
   run (
     Entdb_storage.Sqlite.get_entity_data conn missing_id >>= function
     | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)

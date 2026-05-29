@@ -1,21 +1,21 @@
 (test
  (name test_core)
- (libraries entdb_core alcotest))
+ (libraries entdb_data alcotest))
 
 (test
  (name test_storage)
- (libraries entdb_core entdb_storage alcotest lwt lwt.unix yojson))
+ (libraries entdb_data entdb_storage alcotest lwt lwt.unix yojson))
 
 (test
  (name test_entity)
- (libraries entdb_core entdb_storage entdb_data entdb_entity alcotest lwt lwt.unix ppx_yojson_conv_lib)
+ (libraries entdb_data entdb_storage entdb_data_api entdb_entity_api alcotest lwt lwt.unix ppx_yojson_conv_lib)
  (preprocess (pps ppx_yojson_conv)))
 
 (test
  (name test_sources)
  (modes byte)
- (libraries entdb_core entdb_sources alcotest yojson))
+ (libraries entdb_data entdb_sources alcotest yojson))
 
 (test
  (name test_entdb)
- (libraries entdb_core entdb_storage entdb_data entdb_entity))
+ (libraries entdb_data entdb_storage entdb_data_api entdb_entity_api))

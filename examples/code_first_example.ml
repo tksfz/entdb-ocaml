@@ -1,7 +1,7 @@
 open Lwt.Infix
 
 module Task = struct
-  module Id = Entdb_core.Entity_id.Make(struct let type_id_prefix = "tsk" end)
+  module Id = Entdb_data.Entity_id.Make(struct let type_id_prefix = "tsk" end)
   
   type t = {
     id : Id.t;
@@ -14,8 +14,8 @@ module Task = struct
   let primary_key_field = "id"
 end
 
-module Data_api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
-module Entity_api = Entdb_entity.Api.Make(Data_api)
+module Data_api = Entdb_data_api.Api.Make(Entdb_storage.Sqlite)
+module Entity_api = Entdb_entity_api.Api.Make(Data_api)
 
 let run_example () =
   let db_path = "example_code_first.sqlite" in

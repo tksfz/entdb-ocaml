@@ -2,5 +2,5 @@
  (public_name entdb.sources)
  (name entdb_sources)
  (modes byte)
- (libraries entdb_core entdb_storage entdb_data entdb_entity compiler-libs.toplevel findlib findlib.top ppxlib ppx_yojson_conv lwt_ppx validate validate.ppx_derive_validate)
+ (libraries entdb_data entdb_entity entdb_storage entdb_data_api entdb_entity_api compiler-libs.toplevel findlib findlib.top ppxlib ppx_yojson_conv lwt_ppx validate validate.ppx_derive_validate)
  (preprocess (pps ppx_yojson_conv lwt_ppx)))

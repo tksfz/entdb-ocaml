@@ -18,12 +18,12 @@ module type S = sig
   val create_database : string -> (t, error) result Lwt.t
   val open_database : string -> (t, error) result Lwt.t
 
-  val insert_entity_definition : t -> Entdb_core.Entity_definition.t -> (unit, error) result Lwt.t
-  val get_entity_definition : t -> Entdb_core.Entity_definition.id -> (Entdb_core.Entity_definition.t option, error) result Lwt.t
-  val get_entity_definition_by_prefix : t -> string -> (Entdb_core.Entity_definition.t option, error) result Lwt.t
-  val get_entity_definition_by_name : t -> string -> (Entdb_core.Entity_definition.t option, error) result Lwt.t
-  val get_all_entity_definitions : t -> (Entdb_core.Entity_definition.t list, error) result Lwt.t
+  val insert_entity_definition : t -> Entdb_data.Entity_definition.t -> (unit, error) result Lwt.t
+  val get_entity_definition : t -> Entdb_data.Entity_definition.id -> (Entdb_data.Entity_definition.t option, error) result Lwt.t
+  val get_entity_definition_by_prefix : t -> string -> (Entdb_data.Entity_definition.t option, error) result Lwt.t
+  val get_entity_definition_by_name : t -> string -> (Entdb_data.Entity_definition.t option, error) result Lwt.t
+  val get_all_entity_definitions : t -> (Entdb_data.Entity_definition.t list, error) result Lwt.t
 
-  val insert_entity_data : t -> Entdb_core.Entity_data.t -> (unit, error) result Lwt.t
-  val get_entity_data : t -> Entdb_core.Type_id.t -> (Entdb_core.Entity_data.t option, error) result Lwt.t
+  val insert_entity_data : t -> Entdb_data.Entity_data.t -> (unit, error) result Lwt.t
+  val get_entity_data : t -> Entdb_data.Type_id.t -> (Entdb_data.Entity_data.t option, error) result Lwt.t
 end

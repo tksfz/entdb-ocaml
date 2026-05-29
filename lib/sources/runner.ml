@@ -29,10 +29,10 @@ let run_source ~ppx file =
        We point to the .objs/byte directories where the .cmi files live. *)
     let cwd = Sys.getcwd () in
     let internal_libs = [
-      "_build/default/lib/core/.entdb_core.objs/byte";
-      "_build/default/lib/storage/.entdb_storage.objs/byte";
       "_build/default/lib/data/.entdb_data.objs/byte";
-      "_build/default/lib/entity/.entdb_entity.objs/byte";
+      "_build/default/lib/storage/.entdb_storage.objs/byte";
+      "_build/default/lib/data_api/.entdb_data_api.objs/byte";
+      "_build/default/lib/entity_api/.entdb_entity_api.objs/byte";
       "_build/default/lib/sources/.entdb_sources.objs/byte";
     ] in
     List.iter (fun d -> 
@@ -57,8 +57,8 @@ let run_source ~ppx file =
     Error (Printf.sprintf "Exception during source execution: %s" (Printexc.to_string e))
 
 module Make (S : Entdb_storage.Trait.S) = struct
-  module Data_api = Entdb_data.Api.Make(S)
-  module Entity_api = Entdb_entity.Api.Make(Data_api)
+  module Data_api = Entdb_data_api.Api.Make(S)
+  module Entity_api = Entdb_entity_api.Api.Make(Data_api)
 
   let execute_and_register ?(ppx=false) api_handle source_file =
     match run_source ~ppx source_file with

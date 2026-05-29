@@ -1,8 +1,8 @@
-open Entdb_core
-open Entdb_entity
+open Entdb_data
+open Entdb_entity_api
 
 module Task = struct
-  module Id = Entdb_core.Entity_id.Make(struct let type_id_prefix = "tsk" end)
+  module Id = Entdb_data.Entity_id.Make(struct let type_id_prefix = "tsk" end)
 
   type t = {
     id : Id.t; [@validate.custom fun id -> match Id.validate id with Ok () -> Ok () | Error e -> Error (Validate.BaseError {code=e; params=[]})]
