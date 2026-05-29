@@ -8,7 +8,7 @@
 
 (test
  (name test_entity)
- (libraries entdb_core entdb_storage entdb_data entdb_entity alcotest lwt lwt.unix ppx_yojson_conv_lib)
+ (libraries entdb_core entdb_storage entdb_data entdb_entity_api alcotest lwt lwt.unix ppx_yojson_conv_lib)
  (preprocess (pps ppx_yojson_conv)))
 
 (test
@@ -18,4 +18,4 @@
 
 (test
  (name test_entdb)
- (libraries entdb_core entdb_storage entdb_data entdb_entity))
+ (libraries entdb_core entdb_storage entdb_data entdb_entity_api))

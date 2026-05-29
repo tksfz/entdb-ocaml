@@ -1,4 +1,4 @@
 (executable
  (name code_first_example)
- (libraries entdb_core entdb_storage entdb_data entdb_entity lwt lwt.unix yojson ppx_yojson_conv_lib)
+ (libraries entdb_core entdb_storage entdb_data entdb_entity_api lwt lwt.unix yojson ppx_yojson_conv_lib)
  (preprocess (pps ppx_yojson_conv lwt_ppx)))

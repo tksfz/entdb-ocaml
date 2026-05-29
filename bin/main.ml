@@ -3,7 +3,7 @@ open Lwt.Infix
 open Entdb_core
 open Entdb_storage
 open Entdb_data
-open Entdb_entity
+open Entdb_entity_api
 open Entdb_sources
 
 module Api = Entdb_data.Api.Make(Entdb_storage.Sqlite)

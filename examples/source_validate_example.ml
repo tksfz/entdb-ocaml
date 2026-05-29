@@ -1,5 +1,5 @@
 open Entdb_core
-open Entdb_entity
+open Entdb_entity_api
 
 module Task = struct
   module Id = Entdb_core.Entity_id.Make(struct let type_id_prefix = "tsk" end)
