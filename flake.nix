@@ -45,6 +45,7 @@
             uuidm
             cmdliner
             validate
+            alcotest
           ];
 
           shellHook = ''
