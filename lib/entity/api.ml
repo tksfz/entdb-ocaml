@@ -31,7 +31,8 @@ module Make (D : DATA_API) = struct
     let json = E.yojson_of_t data in
     D.put_entity_yojson t E.name json
 
-  let get_entity (type a) (t : D.t) (module E : Entdb_core.Entity_trait.S with type t = a) id_str =
+  let get_entity (type a) (type b) (t : D.t) (module E : Entdb_core.Entity_trait.S with type t = a and type Id.t = b) (id : b) =
+    let id_str = E.Id.to_string id in
     D.get_entity_data t id_str >>= function
     | Error e -> Lwt.return (Error e)
     | Ok None -> Lwt.return (Ok None)
