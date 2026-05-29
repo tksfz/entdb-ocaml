@@ -1,6 +1,6 @@
 open Lwt.Infix
 
-module Api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
+module Api = Entdb_data_api.Api.Make(Entdb_storage.Sqlite)
 
 let run_test () =
   let db_path = "test_entdb.sqlite" in

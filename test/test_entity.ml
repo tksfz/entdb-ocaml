@@ -15,7 +15,7 @@ module Task = struct
   let primary_key_field = "id"
 end
 
-module Data_api = Entdb_data.Api.Make(Entdb_storage.Sqlite)
+module Data_api = Entdb_data_api.Api.Make(Entdb_storage.Sqlite)
 module Entity_api = Entdb_entity_api.Api.Make(Data_api)
 
 let make_api () =
