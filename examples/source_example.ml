@@ -12,7 +12,6 @@ module User = struct
 
   let name = "User"
   let description = Some "A user entity defined in a source"
-  let type_id_prefix = "usr"
   let primary_key_field = "id"
   
   let yojson_of_t t = 

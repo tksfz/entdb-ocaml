@@ -12,7 +12,6 @@ module Task = struct
 
   let name = "Task"
   let description = Some "A task entity defined in a source with ppx"
-  let type_id_prefix = "tsk"
   let primary_key_field = "id"
 end
 

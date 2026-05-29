@@ -7,6 +7,7 @@ end
 module type S = sig
   type t
 
+  val type_id_prefix : string
   val yojson_of_t : t -> Yojson.Safe.t
   val t_of_yojson : Yojson.Safe.t -> t
   val to_string : t -> string
@@ -19,6 +20,8 @@ end
 
 module Make (P : PREFIX) : S = struct
   type t = Type_id.t
+
+  let type_id_prefix = P.type_id_prefix
 
   let yojson_of_t id = Type_id.yojson_of_t id
   let t_of_yojson json = Type_id.t_of_yojson json

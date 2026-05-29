@@ -11,7 +11,6 @@ module Task = struct
 
   let name = "Task"
   let description = Some "A code-defined task entity"
-  let type_id_prefix = "tsk"
   let primary_key_field = "id"
 end
 

@@ -21,7 +21,7 @@ module Make (D : DATA_API) = struct
               id = Entdb_core.Entity_definition.create_id ();
               name = E.name;
               description = E.description;
-              type_id_prefix = E.type_id_prefix;
+              type_id_prefix = E.Id.type_id_prefix;
               primary_key_field = E.primary_key_field;
             }
         in
