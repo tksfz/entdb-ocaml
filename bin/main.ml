@@ -69,6 +69,20 @@ let clean_argv () =
   in
   filter [] 0
 
+let boot_schema_sources api =
+  Api.get_all_schema_sources api >>= function
+  | Error _ -> Lwt.return_unit
+  | Ok sources ->
+      Lwt_list.iter_s (fun (s : Entdb_data.Schema_source.t) ->
+        let tmp = Filename.temp_file "entdb_boot_" ".ml" in
+        let oc = open_out tmp in
+        output_string oc s.source;
+        close_out oc;
+        Source_runner.execute_and_register api tmp >>= fun _ ->
+        (try Sys.remove tmp with _ -> ());
+        Lwt.return_unit
+      ) sources
+
 let get_dynamic_entities dbfile source_opt ppx =
   let db_path_res =
     match dbfile with
@@ -83,10 +97,10 @@ let get_dynamic_entities dbfile source_opt ppx =
         | Error _ -> Lwt.return []
         | Ok storage ->
             let api = Api.create storage in
+            boot_schema_sources api >>= fun () ->
             (match source_opt with
              | Some f -> Source_runner.execute_and_register ~ppx api f >>= fun _ -> Lwt.return_unit
              | None -> Lwt.return_unit) >>= fun () ->
-            
             Entdb_storage.Sqlite.get_all_entity_definitions storage >>= function
             | Error _ -> Lwt.return []
             | Ok defs -> Lwt.return (List.map (fun d -> d.Entdb_data.Entity_definition.name) defs)
@@ -114,6 +128,31 @@ let open_schema file =
         match save_state file with
         | Error e -> Lwt.return (Printf.printf "Error saving state: %s\n" e)
         | Ok () -> Lwt.return (Printf.printf "Database successfully opened and set as active!\n")
+  )
+
+let import_schema file dbfile =
+  run_lwt (
+    let db_path_res =
+      match dbfile with
+      | Some p -> Ok p
+      | None -> (match load_state () with Ok s -> Ok s.db_path | Error e -> Error e)
+    in
+    match db_path_res with
+    | Error e -> Lwt.return (Printf.printf "%s\n" e)
+    | Ok db_path ->
+        Entdb_storage.Sqlite.open_database db_path >>= function
+        | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
+        | Ok storage ->
+            let api = Api.create storage in
+            Api.import_schema_source api file >>= function
+            | Error e -> Lwt.return (Printf.printf "Error: %s\n" e)
+            | Ok `Already_imported ->
+                Lwt.return (Printf.printf "Schema source already imported (duplicate hash).\n")
+            | Ok `Imported ->
+                Printf.printf "Schema source stored. Running to register entities...\n";
+                Source_runner.execute_and_register api file >>= function
+                | Error e -> Lwt.return (Printf.printf "Error running source: %s\n" e)
+                | Ok () -> Lwt.return (Printf.printf "Schema source imported and entities registered!\n")
   )
 
 let add_entity file dbfile =
@@ -288,22 +327,32 @@ let open_cmd =
   let info = Cmd.info "open" ~doc in
   Cmd.v info Term.(const open_schema $ file_arg)
 
+let dbfile_opt =
+  let doc = "Database file path (overrides currently open database)" in
+  Arg.(value & opt (some string) None & info ["d"; "dbfile"] ~docv:"DBFILE" ~doc)
+
+let import_source_arg =
+  let doc = "OCaml source file to import as a schema source" in
+  Arg.(required & pos 0 (some string) None & info [] ~docv:"FILE" ~doc)
+
+let import_cmd =
+  let doc = "Import an OCaml source file as a schema source" in
+  let info = Cmd.info "import" ~doc in
+  Cmd.v info Term.(const import_schema $ import_source_arg $ dbfile_opt)
+
 let schema_default_help () =
   Printf.printf "Usage: entdb schema COMMAND [OPTIONS]\n\n";
   Printf.printf "Commands:\n";
   Printf.printf "  create        Create a new database schema\n";
-  Printf.printf "  open          Open an existing database schema\n\n";
+  Printf.printf "  open          Open an existing database schema\n";
+  Printf.printf "  import        Import a schema source file containing entity definitions\n\n";
   Printf.printf "Run `entdb schema COMMAND --help` for more information on a command.\n"
 
 let schema_cmd =
   let doc = "Create and open schema database files" in
   let info = Cmd.info "schema" ~doc in
   let default = Term.(const schema_default_help $ const ()) in
-  Cmd.group info ~default [create_cmd; open_cmd]
-
-let dbfile_opt =
-  let doc = "Database file path (overrides currently open database)" in
-  Arg.(value & opt (some string) None & info ["d"; "dbfile"] ~docv:"DBFILE" ~doc)
+  Cmd.group info ~default [create_cmd; open_cmd; import_cmd]
 
 let in_file_arg =
   let doc = "JSON file containing Entity Definition, or '-' for stdin" in

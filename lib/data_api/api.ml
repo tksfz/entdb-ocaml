@@ -103,4 +103,36 @@ module Make (S : Entdb_storage.Trait.S) = struct
         | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
         | Ok None -> Lwt.return (Ok None)
         | Ok (Some data) -> Lwt.return (Ok (Some data.Entdb_data.Entity_data.data)))
+
+  let import_schema_source t filename =
+    match
+      let ic = open_in filename in
+      let len = in_channel_length ic in
+      let source = really_input_string ic len in
+      close_in ic;
+      source
+    with
+    | exception Sys_error e -> Lwt.return (Error e)
+    | source ->
+        let file_hash = Digest.to_hex (Digest.string source) in
+        S.get_schema_source_by_hash t.storage file_hash >>= function
+        | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
+        | Ok (Some _) -> Lwt.return (Ok `Already_imported)
+        | Ok None ->
+            let schema_source = Entdb_data.Schema_source.{
+              id = Entdb_data.Schema_source.create_id ();
+              created_at = Unix.gettimeofday ();
+              filename = Filename.basename filename;
+              file_hash;
+              lang = Ocaml;
+              source;
+            } in
+            S.insert_schema_source t.storage schema_source >>= function
+            | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
+            | Ok () -> Lwt.return (Ok `Imported)
+
+  let get_all_schema_sources t =
+    S.get_all_schema_sources t.storage >>= function
+    | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
+    | Ok sources -> Lwt.return (Ok sources)
 end
