@@ -73,6 +73,78 @@ let test_entity_data_not_found () =
     | Ok None -> Lwt.return_unit
     | Ok (Some _) -> Lwt.fail_with "should not have found anything")
 
+let sample_schema_source ?(hash="deadbeef") ?(source="let () = ()") () : Entdb_data.Schema_source.t =
+  Entdb_data.Schema_source.{
+    id = Entdb_data.Schema_source.create_id ();
+    created_at = 1234567890.0;
+    filename = "test.ml";
+    file_hash = hash;
+    lang = Ocaml;
+    source;
+  }
+
+let test_schema_source_round_trip () =
+  let conn = make_db () in
+  let ss = sample_schema_source () in
+  run (
+    Entdb_storage.Sqlite.insert_schema_source conn ss >>= function
+    | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
+    | Ok () ->
+        Entdb_storage.Sqlite.get_schema_source_by_hash conn ss.Entdb_data.Schema_source.file_hash >>= function
+        | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
+        | Ok None -> Lwt.fail_with "schema source not found"
+        | Ok (Some retrieved) ->
+            Alcotest.(check string) "filename" "test.ml" retrieved.Entdb_data.Schema_source.filename;
+            Alcotest.(check string) "source" "let () = ()" retrieved.Entdb_data.Schema_source.source;
+            Alcotest.(check string) "hash" "deadbeef" retrieved.Entdb_data.Schema_source.file_hash;
+            Lwt.return_unit)
+
+let test_schema_source_not_found_by_hash () =
+  let conn = make_db () in
+  run (
+    Entdb_storage.Sqlite.get_schema_source_by_hash conn "nosuchash" >>= function
+    | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
+    | Ok None -> Lwt.return_unit
+    | Ok (Some _) -> Lwt.fail_with "should not have found anything")
+
+let test_get_all_schema_sources_empty () =
+  let conn = make_db () in
+  run (
+    Entdb_storage.Sqlite.get_all_schema_sources conn >>= function
+    | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
+    | Ok sources ->
+        Alcotest.(check int) "empty" 0 (List.length sources);
+        Lwt.return_unit)
+
+let test_get_all_schema_sources_multiple () =
+  let conn = make_db () in
+  let s1 = sample_schema_source ~hash:"hash1" ~source:"let x = 1" () in
+  let s2 = sample_schema_source ~hash:"hash2" ~source:"let y = 2" () in
+  run (
+    Entdb_storage.Sqlite.insert_schema_source conn s1 >>= function
+    | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
+    | Ok () ->
+        Entdb_storage.Sqlite.insert_schema_source conn s2 >>= function
+        | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
+        | Ok () ->
+            Entdb_storage.Sqlite.get_all_schema_sources conn >>= function
+            | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
+            | Ok sources ->
+                Alcotest.(check int) "count" 2 (List.length sources);
+                Lwt.return_unit)
+
+let test_schema_source_duplicate_hash () =
+  let conn = make_db () in
+  let s1 = sample_schema_source () in
+  let s2 = sample_schema_source () in
+  run (
+    Entdb_storage.Sqlite.insert_schema_source conn s1 >>= function
+    | Error e -> Lwt.fail_with (Entdb_storage.Trait.error_to_string e)
+    | Ok () ->
+        Entdb_storage.Sqlite.insert_schema_source conn s2 >>= function
+        | Error _ -> Lwt.return_unit
+        | Ok () -> Lwt.fail_with "expected error on duplicate hash")
+
 let () =
   Alcotest.run "entdb_storage" [
     "entity_definition", [
@@ -83,5 +155,12 @@ let () =
     "entity_data", [
       Alcotest.test_case "round-trip"             `Quick test_entity_data_round_trip;
       Alcotest.test_case "not found returns none" `Quick test_entity_data_not_found;
+    ];
+    "schema_sources", [
+      Alcotest.test_case "round-trip"              `Quick test_schema_source_round_trip;
+      Alcotest.test_case "not found returns none"  `Quick test_schema_source_not_found_by_hash;
+      Alcotest.test_case "get all when empty"      `Quick test_get_all_schema_sources_empty;
+      Alcotest.test_case "get all multiple"        `Quick test_get_all_schema_sources_multiple;
+      Alcotest.test_case "duplicate hash fails"    `Quick test_schema_source_duplicate_hash;
     ];
   ]

@@ -17,5 +17,9 @@
  (libraries entdb_data entdb_entity entdb_sources alcotest yojson))
 
 (test
+ (name test_schema_import)
+ (libraries entdb_data entdb_storage entdb_data_api alcotest lwt lwt.unix))
+
+(test
  (name test_entdb)
  (libraries entdb_data entdb_storage entdb_data_api entdb_entity_api))
