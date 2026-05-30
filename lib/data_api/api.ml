@@ -104,7 +104,7 @@ module Make (S : Entdb_storage.Trait.S) = struct
         | Ok None -> Lwt.return (Ok None)
         | Ok (Some data) -> Lwt.return (Ok (Some data.Entdb_data.Entity_data.data)))
 
-  let import_schema_source t filename =
+  let check_schema_source t filename =
     match
       let ic = open_in filename in
       let len = in_channel_length ic in
@@ -127,9 +127,12 @@ module Make (S : Entdb_storage.Trait.S) = struct
               lang = Ocaml;
               source;
             } in
-            S.insert_schema_source t.storage schema_source >>= function
-            | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
-            | Ok () -> Lwt.return (Ok `Imported)
+            Lwt.return (Ok (`New schema_source))
+
+  let store_schema_source t schema_source =
+    S.insert_schema_source t.storage schema_source >>= function
+    | Error e -> Lwt.return (Error (Entdb_storage.Trait.error_to_string e))
+    | Ok () -> Lwt.return (Ok ())
 
   let get_all_schema_sources t =
     S.get_all_schema_sources t.storage >>= function

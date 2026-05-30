@@ -144,15 +144,17 @@ let import_schema file dbfile ppx =
         | Error e -> Lwt.return (Printf.printf "Error: %s\n" (Entdb_storage.Trait.error_to_string e))
         | Ok storage ->
             let api = Api.create storage in
-            Api.import_schema_source api file >>= function
+            Api.check_schema_source api file >>= function
             | Error e -> Lwt.return (Printf.printf "Error: %s\n" e)
             | Ok `Already_imported ->
                 Lwt.return (Printf.printf "Schema source already imported (duplicate hash).\n")
-            | Ok `Imported ->
-                Printf.printf "Schema source stored. Running to register entities...\n";
+            | Ok (`New schema_source) ->
                 Source_runner.execute_and_register ~ppx api file >>= function
                 | Error e -> Lwt.return (Printf.printf "Error running source: %s\n" e)
-                | Ok () -> Lwt.return (Printf.printf "Schema source imported and entities registered!\n")
+                | Ok () ->
+                    Api.store_schema_source api schema_source >>= function
+                    | Error e -> Lwt.return (Printf.printf "Error storing source: %s\n" e)
+                    | Ok () -> Lwt.return (Printf.printf "Schema source imported and entities registered!\n")
   )
 
 let add_entity file dbfile =
