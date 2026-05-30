@@ -30,6 +30,7 @@ let run_source ~ppx file =
     let cwd = Sys.getcwd () in
     let internal_libs = [
       "_build/default/lib/data/.entdb_data.objs/byte";
+      "_build/default/lib/entity/.entdb_entity.objs/byte";
       "_build/default/lib/storage/.entdb_storage.objs/byte";
       "_build/default/lib/data_api/.entdb_data_api.objs/byte";
       "_build/default/lib/entity_api/.entdb_entity_api.objs/byte";
@@ -48,7 +49,8 @@ let run_source ~ppx file =
       with _ -> ()
     ) external_libs;
     
-    let success = Toploop.use_file Format.std_formatter file in
+    let null_fmt = Format.make_formatter (fun _ _ _ -> ()) (fun () -> ()) in
+    let success = Toploop.use_file null_fmt file in
     if success then
       Ok (Harness.get_registered ())
     else

@@ -26,4 +26,8 @@ module type S = sig
 
   val insert_entity_data : t -> Entdb_data.Entity_data.t -> (unit, error) result Lwt.t
   val get_entity_data : t -> Entdb_data.Type_id.t -> (Entdb_data.Entity_data.t option, error) result Lwt.t
+
+  val insert_schema_source : t -> Entdb_data.Schema_source.t -> (unit, error) result Lwt.t
+  val get_all_schema_sources : t -> (Entdb_data.Schema_source.t list, error) result Lwt.t
+  val get_schema_source_by_hash : t -> string -> (Entdb_data.Schema_source.t option, error) result Lwt.t
 end
