@@ -8,37 +8,11 @@
 (rule
  (target embedded_cmis.ml)
  (deps
-  %{lib:entdb.data:entdb_data.cmi}
-  %{lib:entdb.data:entdb_data__Entity_data.cmi}
-  %{lib:entdb.data:entdb_data__Entity_definition.cmi}
-  %{lib:entdb.data:entdb_data__Entity_id.cmi}
-  %{lib:entdb.data:entdb_data__Schema_source.cmi}
-  %{lib:entdb.data:entdb_data__Type_id.cmi}
-  %{lib:entdb.entity:entdb_entity.cmi}
-  %{lib:entdb.entity:entdb_entity__Entity_trait.cmi}
-  %{lib:entdb.storage:entdb_storage.cmi}
-  %{lib:entdb.storage:entdb_storage__Sqlite.cmi}
-  %{lib:entdb.storage:entdb_storage__Trait.cmi}
-  %{lib:entdb.data_api:entdb_data_api.cmi}
-  %{lib:entdb.data_api:entdb_data_api__Api.cmi}
-  %{lib:entdb.entity_api:entdb_entity_api.cmi}
-  %{lib:entdb.entity_api:entdb_entity_api__Api.cmi}
- )
+  %{lib:entdb.data:entdb_data.cma}
+  %{lib:entdb.entity:entdb_entity.cma}
+  %{lib:entdb.storage:entdb_storage.cma}
+  %{lib:entdb.data_api:entdb_data_api.cma}
+  %{lib:entdb.entity_api:entdb_entity_api.cma})
  (action
   (run %{exe:../../tools/gen_embed/gen_embed.exe} %{target}
-   entdb_data.cmi=%{lib:entdb.data:entdb_data.cmi}
-   entdb_data__Entity_data.cmi=%{lib:entdb.data:entdb_data__Entity_data.cmi}
-   entdb_data__Entity_definition.cmi=%{lib:entdb.data:entdb_data__Entity_definition.cmi}
-   entdb_data__Entity_id.cmi=%{lib:entdb.data:entdb_data__Entity_id.cmi}
-   entdb_data__Schema_source.cmi=%{lib:entdb.data:entdb_data__Schema_source.cmi}
-   entdb_data__Type_id.cmi=%{lib:entdb.data:entdb_data__Type_id.cmi}
-   entdb_entity.cmi=%{lib:entdb.entity:entdb_entity.cmi}
-   entdb_entity__Entity_trait.cmi=%{lib:entdb.entity:entdb_entity__Entity_trait.cmi}
-   entdb_storage.cmi=%{lib:entdb.storage:entdb_storage.cmi}
-   entdb_storage__Sqlite.cmi=%{lib:entdb.storage:entdb_storage__Sqlite.cmi}
-   entdb_storage__Trait.cmi=%{lib:entdb.storage:entdb_storage__Trait.cmi}
-   entdb_data_api.cmi=%{lib:entdb.data_api:entdb_data_api.cmi}
-   entdb_data_api__Api.cmi=%{lib:entdb.data_api:entdb_data_api__Api.cmi}
-   entdb_entity_api.cmi=%{lib:entdb.entity_api:entdb_entity_api.cmi}
-   entdb_entity_api__Api.cmi=%{lib:entdb.entity_api:entdb_entity_api__Api.cmi}
-  )))
+   entdb.data entdb.entity entdb.storage entdb.data_api entdb.entity_api)))
