@@ -52,6 +52,13 @@
             echo "OCaml development environment loaded"
             ocaml --version
             dune --version
+            # ocamlc -custom needs to find C stub archives (.a) for static linking.
+            # In Nix these live inside each package's site-lib subdir, not on the
+            # standard linker path, so we add them explicitly.
+            export LIBRARY_PATH="$(ocamlfind query -format '%d' \
+              lwt.unix base base.base_internalhash_types \
+              ocaml_intrinsics_kernel bigstringaf mtime.clock.os sqlite3 \
+              | tr '\n' ':')''${LIBRARY_PATH:+:$LIBRARY_PATH}"
           '';
         };
       });
