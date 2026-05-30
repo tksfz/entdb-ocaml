@@ -130,7 +130,7 @@ let open_schema file =
         | Ok () -> Lwt.return (Printf.printf "Database successfully opened and set as active!\n")
   )
 
-let import_schema file dbfile =
+let import_schema file dbfile ppx =
   run_lwt (
     let db_path_res =
       match dbfile with
@@ -150,7 +150,7 @@ let import_schema file dbfile =
                 Lwt.return (Printf.printf "Schema source already imported (duplicate hash).\n")
             | Ok `Imported ->
                 Printf.printf "Schema source stored. Running to register entities...\n";
-                Source_runner.execute_and_register api file >>= function
+                Source_runner.execute_and_register ~ppx api file >>= function
                 | Error e -> Lwt.return (Printf.printf "Error running source: %s\n" e)
                 | Ok () -> Lwt.return (Printf.printf "Schema source imported and entities registered!\n")
   )
@@ -338,7 +338,7 @@ let import_source_arg =
 let import_cmd =
   let doc = "Import an OCaml source file as a schema source" in
   let info = Cmd.info "import" ~doc in
-  Cmd.v info Term.(const import_schema $ import_source_arg $ dbfile_opt)
+  Cmd.v info Term.(const import_schema $ import_source_arg $ dbfile_opt $ ppx_arg)
 
 let schema_default_help () =
   Printf.printf "Usage: entdb schema COMMAND [OPTIONS]\n\n";
