@@ -23,7 +23,7 @@ let test_register_and_retrieve () =
   Entdb_sources.Harness.register (module User);
   let registered = Entdb_sources.Harness.get_registered () in
   Alcotest.(check int) "count" 1 (List.length registered);
-  let (module E : Entdb_data.Entity_trait.S) = List.hd registered in
+  let (module E : Entdb_entity.Entity_trait.S) = List.hd registered in
   Alcotest.(check string) "name" "User" E.name
 
 let test_get_registered_clears () =
