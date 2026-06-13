@@ -35,7 +35,7 @@ let run_source ~ppx file =
     Topdirs.dir_directory (Lazy.force cmi_dir);
 
     (* External library paths via findlib *)
-    let external_libs = ["yojson"; "uuidm"; "lwt"; "ppx_yojson_conv_lib"; "validate"] in
+    let external_libs = ["yojson"; "uuidm"; "lwt"; "ppx_yojson_conv_lib"; "validate"; "entdb.sources"] in
     List.iter (fun lib ->
       try Topdirs.dir_directory (Findlib.package_directory lib)
       with _ -> ()
