@@ -23,6 +23,42 @@
             doCheck = false;
           };
 
+          # How the portable binary works
+          # ==============================
+          # Goal: a single self-contained binary that runs on any x86_64 Linux
+          # with glibc, libsqlite3, and libev — no Nix store or build tree needed.
+          #
+          # 1. CMI embedding (build time)
+          #    tools/gen_embed uses findlib to discover every .cmi file from the
+          #    five internal libraries and emits them as string literals in
+          #    lib/sources/embedded_cmis.ml.  The dune rule for this file depends
+          #    on each library's .cma so it rebuilds whenever a library changes.
+          #
+          # 2. CMI extraction (runtime)
+          #    lib/sources/runner.ml has a lazy `cmi_dir` value that, on first
+          #    use, writes all embedded CMIs into a temp directory and adds that
+          #    directory to the OCaml toploop's load path.  This replaces the
+          #    old approach of hardcoding _build/default/... paths.
+          #
+          # 3. Binary format
+          #    bin/dune builds with (modes byte) and ocamlc -custom, which
+          #    produces an ELF binary containing the OCaml C runtime followed by
+          #    the bytecode appended after the last ELF section.  The runtime
+          #    locates the bytecode by reading a trailer from the end of the file.
+          #
+          # 4. Nix packaging pitfalls
+          #    a. strip -S rewrites the ELF and silently drops everything after
+          #       the last ELF section — i.e. the bytecode.  Avoided with
+          #       dontStrip = true; native .cmxs shared objects are stripped
+          #       manually in preFixup instead.
+          #    b. patchelf --set-interpreter may append a new PT_LOAD segment at
+          #       end-of-file to store the longer/shorter interpreter string,
+          #       again displacing the bytecode trailer.  Avoided by patching the
+          #       interpreter bytes in-place with Python (simple find-and-replace
+          #       inside the binary).  The Nix store RPATH entries are left as-is;
+          #       on non-Nix systems those paths don't exist so the dynamic linker
+          #       skips them and falls back to the standard library search path.
+          #
           entdb = ocamlPkgs.buildDunePackage {
             pname = "entdb";
             version = "0.1.0";
