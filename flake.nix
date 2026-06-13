@@ -35,18 +35,38 @@
               findlib ppxlib
               validate
             ];
-            nativeBuildInputs = [ pkgs.patchelf ocamlPkgs.findlib ];
+            nativeBuildInputs = [ pkgs.patchelf ocamlPkgs.findlib pkgs.python3 ];
             preBuild = ''
               export LIBRARY_PATH="$(ocamlfind query -format '%d' \
                 lwt.unix base base.base_internalhash_types \
                 ocaml_intrinsics_kernel bigstringaf mtime.clock.os sqlite3 \
                 | tr '\n' ':')$LIBRARY_PATH"
             '';
+            # strip rewrites the ELF and drops OCaml's appended bytecode, so we
+            # disable it and strip only native shared objects ourselves.
+            dontStrip = true;
+            preFixup = ''
+              find $out/lib -name "*.cmxs" -exec strip -S -p {} \;
+            '';
             postFixup = ''
-              patchelf \
-                --set-interpreter /lib64/ld-linux-x86-64.so.2 \
-                --set-rpath "" \
-                $out/bin/entdb
+              # Patch the interpreter in-place so patchelf doesn't append a new
+              # ELF segment at EOF, which would displace the OCaml bytecode trailer
+              # that the runtime locates by reading from the end of the file.
+              # Dead Nix store RPATH entries are harmless on non-Nix systems.
+              python3 -c "
+import re, sys
+path = '$out/bin/entdb'
+new = b'/lib64/ld-linux-x86-64.so.2\x00'
+with open(path, 'r+b') as f:
+    data = f.read()
+    m = re.search(b'/nix/store/[^\x00]+/ld-linux-x86-64\\.so\\.2\x00', data)
+    if not m:
+        sys.exit('interpreter not found in binary')
+    old = m.group(0)
+    assert len(old) >= len(new), 'new interpreter longer than old'
+    f.seek(m.start())
+    f.write(new + b'\x00' * (len(old) - len(new)))
+"
             '';
             doCheck = false;
           };
