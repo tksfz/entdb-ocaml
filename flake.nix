@@ -113,9 +113,20 @@ with open(path, 'r+b') as f:
 
         devPackages = makePackages ocamlPackages;
 
+        localEntdb = devPackages.entdb.overrideAttrs (old: {
+          preFixup = "";
+          postFixup = "";
+          nativeBuildInputs = builtins.filter
+            (p: p != pkgs.patchelf && p != pkgs.python3)
+            old.nativeBuildInputs;
+        });
+
       in
       {
         packages.default = devPackages.entdb;
+        # NixOS-native build: no interpreter patching, runs directly on this system.
+        # Use with: nix run .#local  or  nix build .#local
+        packages.local = localEntdb;
 
         devShells.default = pkgs.mkShell {
           nativeBuildInputs = with pkgs; [
@@ -126,6 +137,7 @@ with open(path, 'r+b') as f:
             ocamlPackages.utop
             ocamlPackages.findlib
             opam
+            localEntdb
           ];
 
           buildInputs = with ocamlPackages; [
