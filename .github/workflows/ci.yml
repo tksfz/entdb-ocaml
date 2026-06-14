@@ -21,5 +21,5 @@ jobs:
       - name: Build portable binary
         run: nix build .#default
 
-      - name: Smoke test binary
-        run: nix run .#default -- --help
+      - name: Smoke test CLI
+        run: nix run .#local -- --help

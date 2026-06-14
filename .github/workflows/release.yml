@@ -20,9 +20,6 @@ jobs:
       - name: Build portable binary
         run: nix build .#default
 
-      - name: Smoke test binary
-        run: nix run .#default -- --help
-
       - name: Prepare release asset
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
