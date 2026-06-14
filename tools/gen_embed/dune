@@ -1,0 +1,4 @@
+(executable
+ (name gen_embed)
+ (modules gen_embed)
+ (libraries findlib))

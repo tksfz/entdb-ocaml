@@ -4,3 +4,15 @@
  (modes byte)
  (libraries entdb_data entdb_entity entdb_storage entdb_data_api entdb_entity_api compiler-libs.toplevel findlib findlib.top ppxlib ppx_yojson_conv lwt_ppx validate validate.ppx_derive_validate)
  (preprocess (pps ppx_yojson_conv lwt_ppx)))
+
+(rule
+ (target embedded_cmis.ml)
+ (deps
+  %{lib:entdb.data:entdb_data.cma}
+  %{lib:entdb.entity:entdb_entity.cma}
+  %{lib:entdb.storage:entdb_storage.cma}
+  %{lib:entdb.data_api:entdb_data_api.cma}
+  %{lib:entdb.entity_api:entdb_entity_api.cma})
+ (action
+  (run %{exe:../../tools/gen_embed/gen_embed.exe} %{target}
+   entdb.data entdb.entity entdb.storage entdb.data_api entdb.entity_api)))
