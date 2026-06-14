@@ -7,33 +7,19 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
-
-      - name: Cache Nix store
-        uses: DeterminateSystems/magic-nix-cache-action@v8
 
       - name: Run tests
         run: nix develop -c dune runtest
-
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Nix
-        uses: cachix/install-nix-action@v30
-
-      - name: Cache Nix store
-        uses: DeterminateSystems/magic-nix-cache-action@v8
 
       - name: Build portable binary
         run: nix build .#default
 
       - name: Smoke test binary
-        run: ./result/bin/entdb --help
+        run: nix run .#default -- --help

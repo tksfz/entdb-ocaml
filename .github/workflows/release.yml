@@ -17,11 +17,11 @@ jobs:
       - name: Install Nix
         uses: cachix/install-nix-action@v30
 
-      - name: Cache Nix store
-        uses: DeterminateSystems/magic-nix-cache-action@v8
-
       - name: Build portable binary
         run: nix build .#default
+
+      - name: Smoke test binary
+        run: nix run .#default -- --help
 
       - name: Prepare release asset
         run: |
@@ -29,7 +29,6 @@ jobs:
           ASSET="entdb-${VERSION}-x86_64-linux"
           cp result/bin/entdb "$ASSET"
           chmod +x "$ASSET"
-          ./"$ASSET" --help
 
       - name: Upload release asset
         uses: softprops/action-gh-release@v2
