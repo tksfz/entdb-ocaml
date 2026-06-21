@@ -1,0 +1,73 @@
+name: Release smoke test (macOS)
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to test (e.g. v0.1.0)
+        required: true
+        default: v0.1.0
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install runtime dependencies
+        run: brew install sqlite libev
+
+      - name: Download release binary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ inputs.tag }}"
+          VERSION="${TAG#v}"
+          ASSET="entdb-${VERSION}-aarch64-darwin"
+          gh release download "$TAG" \
+            --repo "${{ github.repository }}" \
+            --pattern "$ASSET" \
+            --clobber
+          chmod +x "$ASSET"
+          mkdir -p "$RUNNER_TEMP/bin"
+          mv "$ASSET" "$RUNNER_TEMP/bin/entdb"
+          echo "$RUNNER_TEMP/bin" >> "$GITHUB_PATH"
+
+      - name: Verify binary architecture
+        run: |
+          echo "Host: $(uname -m)"
+          file "$(command -v entdb)"
+          test "$(uname -m)" = "arm64"
+
+      - name: entdb --help
+        run: entdb --help | head -20
+
+      - name: Create schema database
+        run: entdb schema create /tmp/smoke.sqlite
+
+      - name: List entities (empty db)
+        run: entdb entities list --dbfile /tmp/smoke.sqlite
+
+      - name: Import PPX schema source
+        run: |
+          entdb schema import examples/source_ppx_example.ml \
+            --dbfile /tmp/smoke.sqlite --ppx
+          entdb entities list --dbfile /tmp/smoke.sqlite
+
+      - name: Dynamic entity help (Task)
+        run: entdb entity task --help
+
+      - name: Import plain schema source
+        run: |
+          entdb schema import examples/source_example.ml \
+            --dbfile /tmp/smoke.sqlite
+          entdb entities list --dbfile /tmp/smoke.sqlite
+
+      - name: Dynamic entity help (User)
+        run: entdb entity user --help
+
+      - name: Check dynamic libraries
+        run: otool -L "$(command -v entdb)"
