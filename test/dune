@@ -14,7 +14,7 @@
 (test
  (name test_sources)
  (modes byte)
- (libraries entdb_data entdb_entity entdb_sources alcotest yojson))
+ (libraries entdb_data entdb_entity entdb.sources alcotest yojson))
 
 (test
  (name test_schema_import)

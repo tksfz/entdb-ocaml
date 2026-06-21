@@ -25,22 +25,22 @@ let cmi_dir = lazy (
   tmp
 )
 
+let init_embedded_findlib dir =
+  let conf = Filename.concat dir "findlib.conf" in
+  let oc = open_out conf in
+  Printf.fprintf oc "destdir = %S\npath = %S\n" dir dir;
+  close_out oc;
+  Unix.putenv "OCAMLFIND_CONF" conf;
+  Findlib.init ()
+
 let run_source ~ppx file =
   try
-    Findlib.init ();
+    let lib_dir = Lazy.force cmi_dir in
+    Topdirs.dir_directory lib_dir;
+    init_embedded_findlib lib_dir;
     Toploop.initialize_toplevel_env ();
     if ppx then install_ppx_rewriter ();
 
-    (* Internal library CMIs extracted from the binary *)
-    Topdirs.dir_directory (Lazy.force cmi_dir);
-
-    (* External library paths via findlib *)
-    let external_libs = ["yojson"; "uuidm"; "lwt"; "ppx_yojson_conv_lib"; "validate"; "entdb.sources"] in
-    List.iter (fun lib ->
-      try Topdirs.dir_directory (Findlib.package_directory lib)
-      with _ -> ()
-    ) external_libs;
-    
     let null_fmt = Format.make_formatter (fun _ _ _ -> ()) (fun () -> ()) in
     let success = Toploop.use_file null_fmt file in
     if success then

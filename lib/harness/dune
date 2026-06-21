@@ -1,0 +1,6 @@
+(library
+ (public_name entdb.harness)
+ (name entdb_harness)
+ (modules harness)
+ (wrapped false)
+ (libraries entdb_entity_api))

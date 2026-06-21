@@ -1,0 +1,6 @@
+(library
+ (public_name entdb.sources)
+ (name entdb_sources)
+ (modules entdb_sources)
+ (wrapped false)
+ (libraries entdb_harness))
