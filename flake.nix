@@ -79,7 +79,9 @@
             ];
             nativeBuildInputs = with pkgs; [
               ocamlPkgs.findlib
-            ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.patchelf pkgs.python3 ];
+            ] ++ pkgs.lib.optionals (pkgs.stdenv.isLinux || pkgs.stdenv.isDarwin) [
+              pkgs.python3
+            ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.patchelf ];
             preBuild = ''
               export LIBRARY_PATH="$(ocamlfind query -format '%d' \
                 lwt.unix base base.base_internalhash_types \
@@ -89,21 +91,57 @@
             # strip rewrites the ELF and drops OCaml's appended bytecode, so we
             # disable it and strip only native shared objects ourselves.
             dontStrip = true;
-            preFixup = ''
+            preFixup = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
               find $out/lib -name "*.cmxs" -exec strip -S -p {} \;
             '';
             postFixup =
               (pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+                # install_name_tool rewrites Mach-O load commands and breaks OCaml's
+                # appended bytecode trailer, so patch dylib/rpath strings in place.
                 entdb="$out/bin/entdb"
-                for old in $(otool -L "$entdb" | awk '/\/nix\/store/ {print $1}'); do
-                  install_name_tool -change "$old" "@rpath/$(basename "$old")" "$entdb"
-                done
-                for rpath in $(otool -l "$entdb" | awk '/path / {print $2}' | grep /nix/store || true); do
-                  install_name_tool -delete_rpath "$rpath" "$entdb" 2>/dev/null || true
-                done
-                # Homebrew on Apple Silicon and Intel respectively.
-                install_name_tool -add_rpath /opt/homebrew/lib "$entdb"
-                install_name_tool -add_rpath /usr/local/lib "$entdb"
+                nix_paths="$(
+                  {
+                    otool -L "$entdb" | awk '/\/nix\/store/ {print $1}'
+                    otool -l "$entdb" | awk '/path / {print $2}' | grep /nix/store || true
+                  } | sort -u
+                )"
+                export ENTDB_BIN="$entdb"
+                export NIX_PATHS="$nix_paths"
+                python3 <<'PY'
+import os, sys
+
+bin_path = os.environ["ENTDB_BIN"]
+paths = [p for p in os.environ.get("NIX_PATHS", "").splitlines() if p]
+
+with open(bin_path, "r+b") as f:
+    data = bytearray(f.read())
+
+def replace_all(old, new):
+    old_b = old.encode() if isinstance(old, str) else old
+    new_b = new.encode() if isinstance(new, str) else new
+    if len(new_b) > len(old_b):
+        sys.exit(f"new path {new_b!r} longer than {old_b!r}")
+    padded = new_b + b"\x00" * (len(old_b) - len(new_b))
+    idx = 0
+    while True:
+        idx = data.find(old_b, idx)
+        if idx == -1:
+            return
+        data[idx:idx + len(old_b)] = padded
+        idx += len(old_b)
+
+rpath_targets = ["/opt/homebrew/lib", "/usr/local/lib"]
+ri = 0
+for old in sorted(paths, key=len, reverse=True):
+    if old.endswith(".dylib"):
+        replace_all(old, "@rpath/" + old.rsplit("/", 1)[-1])
+    else:
+        replace_all(old, rpath_targets[min(ri, len(rpath_targets) - 1)])
+        ri += 1
+
+with open(bin_path, "wb") as f:
+    f.write(data)
+PY
               '')
               + (pkgs.lib.optionalString pkgs.stdenv.isLinux ''
               # Patch the interpreter in-place so patchelf doesn't append a new
