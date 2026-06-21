@@ -93,7 +93,7 @@
               find $out/lib -name "*.cmxs" -exec strip -S -p {} \;
             '';
             postFixup =
-              pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+              (pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
                 entdb="$out/bin/entdb"
                 for old in $(otool -L "$entdb" | awk '/\/nix\/store/ {print $1}'); do
                   install_name_tool -change "$old" "@rpath/$(basename "$old")" "$entdb"
@@ -104,8 +104,8 @@
                 # Homebrew on Apple Silicon and Intel respectively.
                 install_name_tool -add_rpath /opt/homebrew/lib "$entdb"
                 install_name_tool -add_rpath /usr/local/lib "$entdb"
-              ''
-              ++ pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+              '')
+              + (pkgs.lib.optionalString pkgs.stdenv.isLinux ''
               # Patch the interpreter in-place so patchelf doesn't append a new
               # ELF segment at EOF, which would displace the OCaml bytecode trailer
               # that the runtime locates by reading from the end of the file.
@@ -126,7 +126,7 @@ with open(path, 'r+b') as f:
               # Drop Nix store RUNPATH so the binary uses system libsqlite3, libev,
               # and glibc.  --remove-rpath only edits the dynamic section in place.
               patchelf --remove-rpath ''$out/bin/entdb
-            '';
+            '');
             doCheck = false;
           };
         };
