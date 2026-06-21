@@ -58,9 +58,12 @@
           #       end-of-file to store the longer/shorter interpreter string,
           #       again displacing the bytecode trailer.  Avoided by patching the
           #       interpreter bytes in-place with Python (simple find-and-replace
-          #       inside the binary).  The Nix store RPATH entries are left as-is;
-          #       on non-Nix systems those paths don't exist so the dynamic linker
-          #       skips them and falls back to the standard library search path.
+          #       inside the binary).
+          #    c. RUNPATH entries pointing at the Nix store must be removed.  On
+          #       CI the store paths exist after `nix build`, so the system
+          #       ld-linux would load Nix glibc alongside the host linker and
+          #       crash (FPE).  On end-user systems we want system libsqlite3,
+          #       libev, and glibc from the default search path anyway.
           #
           entdb = ocamlPkgs.buildDunePackage {
             pname = "entdb";
@@ -93,7 +96,6 @@
               # Patch the interpreter in-place so patchelf doesn't append a new
               # ELF segment at EOF, which would displace the OCaml bytecode trailer
               # that the runtime locates by reading from the end of the file.
-              # Dead Nix store RPATH entries are harmless on non-Nix systems.
               python3 -c "
 import re, sys
 path = '$out/bin/entdb'
@@ -108,6 +110,9 @@ with open(path, 'r+b') as f:
     f.seek(m.start())
     f.write(new + b'\x00' * (len(old) - len(new)))
 "
+              # Drop Nix store RUNPATH so the binary uses system libsqlite3, libev,
+              # and glibc.  --remove-rpath only edits the dynamic section in place.
+              patchelf --remove-rpath ''$out/bin/entdb
             '';
             doCheck = false;
           };

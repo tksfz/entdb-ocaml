@@ -22,7 +22,10 @@ jobs:
         run: nix build .#default
 
       - name: Smoke test portable binary
-        run: ./result/bin/entdb --help
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -qq -y libsqlite3-0 libev4
+          ./result/bin/entdb --help
 
   ci-macos:
     runs-on: macos-latest
