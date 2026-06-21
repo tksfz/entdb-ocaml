@@ -7,7 +7,7 @@ open Entdb_entity_api
 open Entdb_sources
 
 module Api = Entdb_data_api.Api.Make(Entdb_storage.Sqlite)
-module Source_runner = Entdb_sources.Runner.Make(Entdb_storage.Sqlite)
+module Source_runner = Runner.Make(Entdb_storage.Sqlite)
 
 type state = { db_path : string } [@@deriving yojson]
 

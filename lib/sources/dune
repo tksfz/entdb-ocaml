@@ -1,18 +1,33 @@
-(library
- (public_name entdb.sources)
- (name entdb_sources)
- (modes byte)
- (libraries entdb_data entdb_entity entdb_storage entdb_data_api entdb_entity_api compiler-libs.toplevel findlib findlib.top ppxlib ppx_yojson_conv lwt_ppx validate validate.ppx_derive_validate)
- (preprocess (pps ppx_yojson_conv lwt_ppx)))
-
 (rule
  (target embedded_cmis.ml)
  (deps
+  (glob_files ../sources_interface/.entdb_sources.objs/byte/*.{cmi,cmo,cma})
+  (glob_files %{ocaml-config:standard_library}/*.cmi)
   %{lib:entdb.data:entdb_data.cma}
   %{lib:entdb.entity:entdb_entity.cma}
   %{lib:entdb.storage:entdb_storage.cma}
   %{lib:entdb.data_api:entdb_data_api.cma}
-  %{lib:entdb.entity_api:entdb_entity_api.cma})
+  %{lib:entdb.entity_api:entdb_entity_api.cma}
+  %{lib:entdb.harness:entdb_harness.cma}
+  %{lib:yojson:yojson.cma}
+  %{lib:uuidm:uuidm.cma}
+  %{lib:lwt:lwt.cma}
+  %{lib:ppx_yojson_conv_lib:ppx_yojson_conv_lib.cma}
+  %{lib:validate:validate.cma})
  (action
   (run %{exe:../../tools/gen_embed/gen_embed.exe} %{target}
-   entdb.data entdb.entity entdb.storage entdb.data_api entdb.entity_api)))
+   --dir %{ocaml-config:standard_library}
+   --dir ../sources_interface/.entdb_sources.objs/byte
+   entdb.data entdb.entity entdb.storage entdb.data_api entdb.entity_api
+   yojson uuidm lwt ppx_yojson_conv_lib validate)))
+
+(library
+ (public_name entdb.sources.runner)
+ (name entdb_sources_runner)
+ (modules runner embedded_cmis)
+ (wrapped false)
+ (modes byte)
+ (libraries entdb_data entdb_entity entdb_storage entdb_data_api entdb_entity_api
+   entdb.harness
+   compiler-libs.toplevel findlib findlib.top ppxlib ppx_yojson_conv lwt_ppx validate validate.ppx_derive_validate)
+ (preprocess (pps ppx_yojson_conv lwt_ppx)))
