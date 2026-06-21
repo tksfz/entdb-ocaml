@@ -134,7 +134,7 @@ rpath_targets = ["/opt/homebrew/lib", "/usr/local/lib"]
 ri = 0
 for old in sorted(paths, key=len, reverse=True):
     if old.endswith(".dylib"):
-        replace_all(old, "@rpath/" + old.rsplit("/", 1)[-1])
+        replace_all(old, f"/opt/homebrew/lib/{old.rsplit('/', 1)[-1]}")
     else:
         replace_all(old, rpath_targets[min(ri, len(rpath_targets) - 1)])
         ri += 1
