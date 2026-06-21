@@ -118,7 +118,13 @@ with open(path, 'r+b') as f:
           };
         };
 
-        ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_1;
+        # OCaml's own testsuite segfaults on Darwin (tests/unwind/driver.ml); skip
+        # when building the compiler so devShell and packages work on macOS CI.
+        ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_1.overrideScope (_final: prev: {
+          ocaml = prev.ocaml.overrideAttrs (old: {
+            doCheck = !pkgs.stdenv.isDarwin;
+          });
+        });
 
         devPackages = makePackages { inherit pkgs; ocamlPkgs = ocamlPackages; };
         portablePackages = makePackages {
