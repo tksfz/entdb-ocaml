@@ -130,14 +130,16 @@ def replace_all(old, new):
         data[idx:idx + len(old_b)] = padded
         idx += len(old_b)
 
-rpath_targets = ["/opt/homebrew/lib", "/usr/local/lib"]
-ri = 0
+def homebrew_dylib(base):
+    if base.startswith("libsqlite3"):
+        return f"/opt/homebrew/opt/sqlite/lib/{base}"
+    if base.startswith("libev"):
+        return f"/opt/homebrew/opt/libev/lib/{base}"
+    return f"/opt/homebrew/lib/{base}"
+
 for old in sorted(paths, key=len, reverse=True):
     if old.endswith(".dylib"):
-        replace_all(old, f"/opt/homebrew/lib/{old.rsplit('/', 1)[-1]}")
-    else:
-        replace_all(old, rpath_targets[min(ri, len(rpath_targets) - 1)])
-        ri += 1
+        replace_all(old, homebrew_dylib(old.rsplit("/", 1)[-1]))
 
 with open(bin_path, "wb") as f:
     f.write(data)
