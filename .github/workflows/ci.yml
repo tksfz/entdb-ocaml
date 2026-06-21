@@ -42,4 +42,10 @@ jobs:
         run: nix build .#default
 
       - name: Smoke test binary
-        run: ./result/bin/entdb --help
+        run: |
+          brew install sqlite libev
+          if otool -L ./result/bin/entdb | grep -F /nix/store; then
+            echo "Binary still references Nix store paths" >&2
+            exit 1
+          fi
+          ./result/bin/entdb --help

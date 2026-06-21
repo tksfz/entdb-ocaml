@@ -92,7 +92,20 @@
             preFixup = ''
               find $out/lib -name "*.cmxs" -exec strip -S -p {} \;
             '';
-            postFixup = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
+            postFixup =
+              pkgs.lib.optionalString pkgs.stdenv.isDarwin ''
+                entdb="$out/bin/entdb"
+                for old in $(otool -L "$entdb" | awk '/\/nix\/store/ {print $1}'); do
+                  install_name_tool -change "$old" "@rpath/$(basename "$old")" "$entdb"
+                done
+                for rpath in $(otool -l "$entdb" | awk '/path / {print $2}' | grep /nix/store || true); do
+                  install_name_tool -delete_rpath "$rpath" "$entdb" 2>/dev/null || true
+                done
+                # Homebrew on Apple Silicon and Intel respectively.
+                install_name_tool -add_rpath /opt/homebrew/lib "$entdb"
+                install_name_tool -add_rpath /usr/local/lib "$entdb"
+              ''
+              ++ pkgs.lib.optionalString pkgs.stdenv.isLinux ''
               # Patch the interpreter in-place so patchelf doesn't append a new
               # ELF segment at EOF, which would displace the OCaml bytecode trailer
               # that the runtime locates by reading from the end of the file.
@@ -143,10 +156,11 @@ with open(path, 'r+b') as f:
       in
       {
         # Linux: portable binary with glibc 2.39 and ELF interpreter patching.
-        # macOS: local build (no ELF patching; runs on the build host).
+        # macOS: portable binary with Nix store dylib paths rewritten to @rpath
+        # and Homebrew library directories added as rpaths.
         packages.default =
           if pkgs.stdenv.isDarwin then
-            localEntdb
+            devPackages.entdb
           else
             portablePackages.entdb.overrideAttrs (old: {
               # nixos-24.05 ships dune 3.15; patch the language version for the build.
