@@ -9,26 +9,50 @@ permissions:
   contents: write
 
 jobs:
-  release:
-    runs-on: ubuntu-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            system: x86_64-linux
+          - os: macos-latest
+            system: aarch64-darwin
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Nix
         uses: cachix/install-nix-action@v30
 
-      - name: Build portable binary
+      - name: Build binary
         run: nix build .#default
 
       - name: Prepare release asset
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          ASSET="entdb-${VERSION}-x86_64-linux"
+          ASSET="entdb-${VERSION}-${{ matrix.system }}"
           cp result/bin/entdb "$ASSET"
           chmod +x "$ASSET"
 
       - name: Upload release asset
+        uses: actions/upload-artifact@v4
+        with:
+          name: entdb-${{ matrix.system }}
+          path: entdb-*-${{ matrix.system }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download release assets
+        uses: actions/download-artifact@v4
+        with:
+          path: assets
+          pattern: entdb-*
+          merge-multiple: true
+
+      - name: Upload release
         uses: softprops/action-gh-release@v2
         with:
-          files: entdb-*-x86_64-linux
+          files: assets/entdb-*
           generate_release_notes: true

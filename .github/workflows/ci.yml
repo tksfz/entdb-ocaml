@@ -7,7 +7,7 @@ on:
     branches: [main]
 
 jobs:
-  ci:
+  ci-linux:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,4 +22,21 @@ jobs:
         run: nix build .#default
 
       - name: Smoke test portable binary
+        run: ./result/bin/entdb --help
+
+  ci-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@v30
+
+      - name: Run tests
+        run: nix develop -c dune runtest
+
+      - name: Build binary
+        run: nix build .#default
+
+      - name: Smoke test binary
         run: ./result/bin/entdb --help

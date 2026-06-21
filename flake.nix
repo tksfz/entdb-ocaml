@@ -74,7 +74,9 @@
               findlib ppxlib
               validate
             ];
-            nativeBuildInputs = [ pkgs.patchelf ocamlPkgs.findlib pkgs.python3 ];
+            nativeBuildInputs = with pkgs; [
+              ocamlPkgs.findlib
+            ] ++ pkgs.lib.optionals pkgs.stdenv.isLinux [ pkgs.patchelf pkgs.python3 ];
             preBuild = ''
               export LIBRARY_PATH="$(ocamlfind query -format '%d' \
                 lwt.unix base base.base_internalhash_types \
@@ -87,7 +89,7 @@
             preFixup = ''
               find $out/lib -name "*.cmxs" -exec strip -S -p {} \;
             '';
-            postFixup = ''
+            postFixup = pkgs.lib.optionalString pkgs.stdenv.isLinux ''
               # Patch the interpreter in-place so patchelf doesn't append a new
               # ELF segment at EOF, which would displace the OCaml bytecode trailer
               # that the runtime locates by reading from the end of the file.
@@ -129,18 +131,24 @@ with open(path, 'r+b') as f:
 
       in
       {
-        packages.default = portablePackages.entdb.overrideAttrs (old: {
-          # nixos-24.05 ships dune 3.15; patch the language version for the build.
-          preBuild = ''
-            substituteInPlace dune-project --replace-fail '(lang dune 3.21)' '(lang dune 3.15)'
-            chmod -R u+w test
-            rm -rf test
-            export LIBRARY_PATH="$(ocamlfind query -format '%d' \
-              lwt.unix base base.base_internalhash_types \
-              bigstringaf mtime.clock.os sqlite3 \
-              | tr '\n' ':')$LIBRARY_PATH"
-          '';
-        });
+        # Linux: portable binary with glibc 2.39 and ELF interpreter patching.
+        # macOS: local build (no ELF patching; runs on the build host).
+        packages.default =
+          if pkgs.stdenv.isDarwin then
+            localEntdb
+          else
+            portablePackages.entdb.overrideAttrs (old: {
+              # nixos-24.05 ships dune 3.15; patch the language version for the build.
+              preBuild = ''
+                substituteInPlace dune-project --replace-fail '(lang dune 3.21)' '(lang dune 3.15)'
+                chmod -R u+w test
+                rm -rf test
+                export LIBRARY_PATH="$(ocamlfind query -format '%d' \
+                  lwt.unix base base.base_internalhash_types \
+                  bigstringaf mtime.clock.os sqlite3 \
+                  | tr '\n' ':')$LIBRARY_PATH"
+              '';
+            });
         # NixOS-native build: no interpreter patching, runs directly on this system.
         # Use with: nix run .#local  or  nix build .#local
         packages.local = localEntdb;
