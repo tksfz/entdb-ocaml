@@ -3,15 +3,18 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # glibc 2.39 (Ubuntu 24.04); unstable currently ships 2.42.
+    nixpkgsGlibc239.url = "github:NixOS/nixpkgs/nixos-24.05";
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
+  outputs = { self, nixpkgs, nixpkgsGlibc239, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+        pkgsPortable = nixpkgsGlibc239.legacyPackages.${system};
 
-        makePackages = ocamlPkgs: rec {
+        makePackages = { pkgs, ocamlPkgs }: rec {
           validate = ocamlPkgs.buildDunePackage rec {
             pname = "validate";
             version = "1.1.0";
@@ -19,7 +22,7 @@
               url = "https://github.com/Axot017/validate/releases/download/v1.1.0/validate-1.1.0.tbz";
               sha256 = "830d3b1ac8cdacfca2877030dd0377e46115527e7963359537daa5897e563da4";
             };
-            propagatedBuildInputs = with ocamlPkgs; [ ppx_deriving re uri ];
+            propagatedBuildInputs = with ocamlPkgs; [ ppx_deriving ppxlib re uri ];
             doCheck = false;
           };
 
@@ -109,9 +112,12 @@ with open(path, 'r+b') as f:
         };
 
         ocamlPackages = pkgs.ocaml-ng.ocamlPackages_5_1;
-        staticOcamlPackages = pkgs.pkgsStatic.ocaml-ng.ocamlPackages_5_1;
 
-        devPackages = makePackages ocamlPackages;
+        devPackages = makePackages { inherit pkgs; ocamlPkgs = ocamlPackages; };
+        portablePackages = makePackages {
+          pkgs = pkgsPortable;
+          ocamlPkgs = pkgsPortable.ocaml-ng.ocamlPackages_5_1;
+        };
 
         localEntdb = devPackages.entdb.overrideAttrs (old: {
           preFixup = "";
@@ -123,7 +129,18 @@ with open(path, 'r+b') as f:
 
       in
       {
-        packages.default = devPackages.entdb;
+        packages.default = portablePackages.entdb.overrideAttrs (old: {
+          # nixos-24.05 ships dune 3.15; patch the language version for the build.
+          preBuild = ''
+            substituteInPlace dune-project --replace-fail '(lang dune 3.21)' '(lang dune 3.15)'
+            chmod -R u+w test
+            rm -rf test
+            export LIBRARY_PATH="$(ocamlfind query -format '%d' \
+              lwt.unix base base.base_internalhash_types \
+              bigstringaf mtime.clock.os sqlite3 \
+              | tr '\n' ':')$LIBRARY_PATH"
+          '';
+        });
         # NixOS-native build: no interpreter patching, runs directly on this system.
         # Use with: nix run .#local  or  nix build .#local
         packages.local = localEntdb;
